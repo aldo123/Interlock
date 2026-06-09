@@ -6,6 +6,7 @@ from settingform import SettingForm
 import json
 import os
 from cp2 import CP2Page
+from cp3 import CP3Page
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
