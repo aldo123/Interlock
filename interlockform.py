@@ -28,7 +28,7 @@ class InterlockForm:
     def load_interlock(self):
 
         default = {
-
+            
             "Control Point": {
                 "Control Point Code": "BM01-VM01-CP20",
                 "Control Point Family": "CP20 V-Mini",
@@ -130,6 +130,13 @@ class InterlockForm:
 
         def _on_mousewheel(event):
             scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
+            
+        scroll_canvas.bind_all(
+            "<MouseWheel>",
+            _on_mousewheel
+        )
+
+        
 
         dlg.bind("<Destroy>",
             lambda e:
@@ -257,6 +264,11 @@ class InterlockForm:
             self.save_interlock(data)
 
             try:
+                parent.refresh_cp_header()
+            except:
+                pass
+
+            try:
 
                 if hasattr(parent, "db"):
                     parent.db.reload()
@@ -309,4 +321,4 @@ class InterlockForm:
             padx=5
         )
 
-        dlg.update()
+        

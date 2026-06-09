@@ -3,6 +3,9 @@ import tkinter as tk
 from tkinter import ttk
 from interlockform import InterlockForm
 from settingform import SettingForm
+import json
+import os
+from cp2 import CP2Page
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
@@ -34,8 +37,15 @@ class NewMainForm(ctk.CTk):
         self.configure(fg_color=BG)
         self.minsize(1200, 700)
         self.resizable(True, True)
+        self.active_menu = "Main"
+        self.menu_buttons = {}
+        self.content_frame = None
+
+        self.load_cp_from_json()
+
         self._build_header()
         self._build_body()
+        
 
     # =========================================================================
     # HEADER
@@ -60,8 +70,14 @@ class NewMainForm(ctk.CTk):
         # ── Center: title + datetime ──────────────────────────────
         center = ctk.CTkFrame(hdr, fg_color="transparent")
         center.pack(side="left", expand=True)
-        ctk.CTkLabel(center, text="CP02-PCBAVM2",
-                     font=("Segoe UI", 22, "bold"), text_color=SUCCESS).pack()
+        self.lbl_cp_title = ctk.CTkLabel(
+            center,
+            text=self.cp_family,
+            font=("Segoe UI", 22, "bold"),
+            text_color=SUCCESS
+        )
+
+        self.lbl_cp_title.pack()
         ctk.CTkLabel(center, text="Monday, June 08, 2026  8:45:21 AM  WW24",
                      font=("Segoe UI", 10), text_color=TEXT2).pack()
 
@@ -73,7 +89,7 @@ class NewMainForm(ctk.CTk):
         user.pack(side="right", padx=(20, 0))
         gear_btn = ctk.CTkButton(
             user,
-            text="⚙",
+            text="🔧",
             width=36,
             height=36,
             fg_color="transparent",
@@ -105,10 +121,22 @@ class NewMainForm(ctk.CTk):
 
         codes = ctk.CTkFrame(right, fg_color="transparent")
         codes.pack(side="right")
-        ctk.CTkLabel(codes, text="Line Code :   BW01-VM2",
-                     font=("Segoe UI", 10), text_color=TEXT2, anchor="e").pack(anchor="e")
-        ctk.CTkLabel(codes, text="Spec Code :   CP02-PCBAVM2",
-                     font=("Segoe UI", 10), text_color=TEXT2, anchor="e").pack(anchor="e")
+        self.lbl_line_code = ctk.CTkLabel(
+            codes,
+            text=f"Line Code : {self.cp_code}",
+            font=("Segoe UI",10),
+            text_color=TEXT2
+        )
+
+        self.lbl_line_code.pack(anchor="e")
+        self.lbl_spec_code = ctk.CTkLabel(
+            codes,
+            text=f"Spec Code : {self.cp_family}",
+            font=("Segoe UI",10),
+            text_color=TEXT2
+        )
+
+        self.lbl_spec_code.pack(anchor="e")
 
     # =========================================================================
     # BODY
@@ -156,7 +184,7 @@ class NewMainForm(ctk.CTk):
 
         ctk.CTkButton(
             frame,
-            text="⚙  Interlock",
+            text="🔧 Interlock",
             anchor="w",
             height=36,
             fg_color="transparent",
@@ -196,12 +224,35 @@ class NewMainForm(ctk.CTk):
         )
 
     def _build_body(self):
-        body = ctk.CTkFrame(self, fg_color="transparent")
-        body.pack(fill="both", expand=True)
 
-        self._build_sidebar(body)
-        self._build_right_panel(body)   # pack right first so main gets rest
-        self._build_main_content(body)
+        self.body = ctk.CTkFrame(
+            self,
+            fg_color="transparent"
+        )
+
+        self.body.pack(
+            fill="both",
+            expand=True
+        )
+
+        self._build_sidebar(self.body)
+
+        
+
+        self.content_frame = ctk.CTkFrame(
+            self.body,
+            fg_color=BG
+        )
+
+        self.content_frame.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        self._build_main_content(
+            self.content_frame
+        )
 
     # =========================================================================
     # SIDEBAR
@@ -211,185 +262,298 @@ class NewMainForm(ctk.CTk):
         sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
 
-        for label in ["Main", "MaterialStatus", "Maintenance", "SN List"]:
-            ctk.CTkButton(
-                sidebar, text=label, width=120, height=34,
-                fg_color="transparent", hover_color=CARD_BG,
-                text_color=TEXT2, anchor="w",
-                font=("Segoe UI", 11), corner_radius=0
-            ).pack(padx=4, pady=2, anchor="w")
+        menu_items = [
+            ("Main", self.show_main),
+            ("MaterialStatus", self.show_material_status),
+            ("Maintenance", self.show_maintenance),
+            ("SN List", self.show_sn_list),
+            ("Reference", self.show_reference)
+        ]
 
+        for text, cmd in menu_items:
+
+            btn = ctk.CTkButton(
+                sidebar,
+                text=text,
+                width=120,
+                height=34,
+                fg_color="transparent",
+                hover_color=CARD_BG,
+                text_color=TEXT2,
+                anchor="w",
+                font=("Segoe UI", 11),
+                corner_radius=0,
+                command=lambda t=text, c=cmd: self.change_menu(t, c)
+            )
+
+            btn.pack(
+                padx=4,
+                pady=2,
+                anchor="w"
+            )
+
+            self.menu_buttons[text] = btn
+
+        self.menu_buttons["Main"].configure(
+            fg_color="#16A34A",
+            text_color="white"
+        )
+
+    def change_menu(self, menu_name, callback):
+
+        self.active_menu = menu_name
+
+        for name, btn in self.menu_buttons.items():
+
+            if name == menu_name:
+
+                btn.configure(
+                    fg_color="#16A34A",
+                    text_color="white"
+                )
+
+            else:
+
+                btn.configure(
+                    fg_color="transparent",
+                    text_color=TEXT2
+                )
+
+        callback()
+
+
+    def clear_content(self):
+
+        if self.content_frame is not None:
+            self.content_frame.destroy()
+            self.content_frame = None
+            
+    def show_main(self):
+
+        self.clear_content()
+
+        self.content_frame = ctk.CTkFrame(
+            self.body,
+            fg_color=BG
+        )
+
+        self.content_frame.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        self._build_main_content(
+            self.content_frame
+        )
+
+    def show_material_status(self):
+
+        self.clear_content()
+
+        self.content_frame = ctk.CTkFrame(
+            self.body,
+            fg_color=BG
+        )
+
+        self.content_frame.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        ctk.CTkLabel(
+            self.content_frame,
+            text="MATERIAL STATUS PAGE",
+            font=("Segoe UI",30,"bold")
+        ).pack(
+            expand=True
+        )
+
+    def show_maintenance(self):
+
+        self.clear_content()
+
+        self.content_frame = ctk.CTkFrame(
+            self.body,
+            fg_color=BG
+        )
+
+        self.content_frame.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        ctk.CTkLabel(
+            self.content_frame,
+            text="MAINTENANCE PAGE",
+            font=("Segoe UI",30,"bold")
+        ).pack(
+            expand=True
+        )
+
+    def show_sn_list(self):
+
+        self.clear_content()
+
+        self.content_frame = ctk.CTkFrame(
+            self.body,
+            fg_color=BG
+        )
+
+        self.content_frame.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        ctk.CTkLabel(
+            self.content_frame,
+            text="SN LIST PAGE",
+            font=("Segoe UI",30,"bold")
+        ).pack(
+            expand=True
+        )
+
+    def show_reference(self):
+
+        self.clear_content()
+
+        self.content_frame = ctk.CTkFrame(
+            self.body,
+            fg_color=BG
+        )
+
+        self.content_frame.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
+
+        ctk.CTkLabel(
+            self.content_frame,
+            text="REFERENCE PAGE",
+            font=("Segoe UI",30,"bold")
+        ).pack(
+            expand=True
+        )
+    
+    def load_cp_from_json(self):
+
+        self.cp_code = "BW01-VM2"
+        self.cp_family = "CP02-PCBAVM2"
+        self.cp_name = "CP02-PCBAVM2"
+
+        try:
+
+            path = os.path.join(
+                os.path.dirname(__file__),
+                "interlock.json"
+            )
+
+            if not os.path.exists(path):
+                return
+
+            with open(
+                path,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
+                data = json.load(f)
+
+            cp = data.get("Control Point", {})
+
+            self.cp_code = cp.get(
+                "Control Point Code",
+                self.cp_code
+            )
+
+            self.cp_family = cp.get(
+                "Control Point Family",
+                self.cp_family
+            )
+
+            self.cp_name = cp.get(
+                "Control Point Name",
+                self.cp_name
+            )
+
+            self.process_no = cp.get(
+                "Process",
+                "1"
+            )
+
+        except Exception as e:
+
+            print(
+                "CP LOAD ERROR:",
+                e
+            )
+
+    def refresh_cp_header(self):
+
+        self.load_cp_from_json()
+
+        self.lbl_cp_title.configure(
+            text=self.cp_family
+        )
+
+        self.lbl_line_code.configure(
+            text=f"Line Code : {self.cp_code}"
+        )
+
+        self.lbl_spec_code.configure(
+            text=f"Spec Code : {self.cp_family}"
+        )
+    
+    
     # =========================================================================
     # MAIN CONTENT
     # =========================================================================
     def _build_main_content(self, parent):
-        main = ctk.CTkFrame(parent, fg_color=BG)
-        main.pack(side="left", fill="both", expand=True)
 
-        # ── 1. Serial Number ─────────────────────────────────────
-        sn_box = self._card(main, "Serial Number :")
-        sn_row = ctk.CTkFrame(sn_box, fg_color="transparent")
-        sn_row.pack(fill="x", pady=(6, 6))
-        sn_entry_wrap = ctk.CTkFrame(sn_row, fg_color="#172132",
-                                     border_width=2, border_color=BORDER, corner_radius=6)
-        sn_entry_wrap.pack(side="left", padx=(0, 20))
-        ctk.CTkLabel(sn_entry_wrap, text="▐▌▐▌▐▌", font=("Courier", 14),
-                     text_color=TEXT2, width=28).pack(side="left", padx=(6, 0))
-        ctk.CTkEntry(sn_entry_wrap, fg_color="#172132", border_width=0,
-                     text_color=TEXT, placeholder_text="Scan Product SN", width=300,
-                     state="disabled").pack(side="left", padx=(2, 4))
-        ctk.CTkLabel(sn_row, text="Shift Completed Qty :",
-                     font=("Segoe UI", 10), text_color=TEXT2).pack(side="left")
-        ctk.CTkLabel(sn_row, text="  ✔ ", font=("Segoe UI", 12),
-                     text_color=SUCCESS).pack(side="left")
-        ctk.CTkEntry(sn_row, fg_color="#172132", border_color=BORDER,
-                     text_color=TEXT, placeholder_text="", width=80,
-                     state="disabled").pack(side="left", padx=8)
-
-        # ── 2. Production Order ───────────────────────────────────
-        po_outer = ctk.CTkFrame(main, fg_color=CARD_BG,
-                                border_width=1, border_color=BORDER, corner_radius=6)
-        po_outer.pack(fill="x", padx=6, pady=(8, 0))
-
-        # title row (label only)
-        po_hdr = ctk.CTkFrame(po_outer, fg_color="transparent")
-        po_hdr.pack(fill="x", padx=10, pady=(6, 0))
-        ctk.CTkLabel(po_hdr, text="Production Order :", font=("Segoe UI", 10),
-                     text_color=TEXT2).pack(side="left")
-
-        # scan entry row (icon inside entry wrap)
-        po_scan = ctk.CTkFrame(po_outer, fg_color="transparent")
-        po_scan.pack(fill="x", padx=10, pady=(4, 6))
-        po_entry_wrap = ctk.CTkFrame(po_scan, fg_color="#172132",
-                                     border_width=2, border_color=BORDER, corner_radius=6)
-        po_entry_wrap.pack(side="left")
-        ctk.CTkLabel(po_entry_wrap, text="📄", font=("Segoe UI", 13),
-                     text_color=TEXT2).pack(side="left", padx=(6, 2))
-        ctk.CTkEntry(po_entry_wrap, fg_color="#172132", border_width=0,
-                     text_color=TEXT, placeholder_text="", width=280,
-                     state="disabled").pack(side="left", padx=(0, 4))
-
-        # fields: Product, Description, Order Qty, Completed Qty, Balance Qty
-        po_single = ctk.CTkFrame(po_outer, fg_color="transparent")
-        po_single.pack(fill="x", padx=10, pady=(0, 8))
-        po_fields = [
-            ("Product :",       140),
-            ("Description :",   300),
-            ("Order Qty :",      80),
-            ("Completed Qty :",  80),
-            ("Balance Qty :",    80),
-        ]
-        for lbl, w in po_fields:
-            ctk.CTkLabel(po_single, text=lbl, font=("Segoe UI", 9, "bold"),
-                         text_color=TEXT2, anchor="w").pack(side="left", padx=(4, 1))
-            ctk.CTkEntry(po_single, fg_color="#172132", border_color=BORDER,
-                         text_color=TEXT, placeholder_text="", width=w, height=26,
-                         state="disabled").pack(side="left", padx=(0, 4))
-
-        # ── 3. Feeding Material ───────────────────────────────────
-        fm_box = self._card(main, "Feeding Material:")
-        fm_row = ctk.CTkFrame(fm_box, fg_color="transparent")
-        fm_row.pack(fill="x", pady=(6, 6))
-        fm_entry_wrap = ctk.CTkFrame(fm_row, fg_color="#172132",
-                                     border_width=2, border_color=BORDER, corner_radius=6)
-        fm_entry_wrap.pack(side="left", fill="x", expand=True)
-        ctk.CTkLabel(fm_entry_wrap, text="▐▌▐▌▐▌", font=("Courier", 14),
-                     text_color=TEXT2, width=28).pack(side="left", padx=(6, 0))
-        ctk.CTkEntry(fm_entry_wrap, fg_color="#172132", border_width=0,
-                     text_color=TEXT,
-                     placeholder_text="Scan Material Batch / Serial Number",
-                     width=500, state="disabled").pack(side="left", padx=(2, 4), fill="x", expand=True)
-
-        # ── 4. P/N Table ──────────────────────────────────────────
-        tbl_frame = ctk.CTkFrame(main, fg_color=CARD_BG,
-                                 border_width=1, border_color=BORDER, corner_radius=6)
-        tbl_frame.pack(fill="x", padx=6, pady=(6, 0))
-
-        style = ttk.Style(self)
-
-        style.theme_use("default")
-
-        style.configure(
-            "PN.Treeview",
-            background="#172132",
-            foreground="#E2E8F0",
-            fieldbackground="#172132",
-            borderwidth=0,
-            rowheight=28
+        container = ctk.CTkFrame(
+            parent,
+            fg_color=BG
         )
 
-        style.configure(
-            "PN.Treeview.Heading",
-            background="#1E293B",
-            foreground="#E2E8F0"
+        container.pack(
+            fill="both",
+            expand=True
         )
 
-        style.map(
-            "PN.Treeview",
-            background=[("selected", "#2563EB")],
-            foreground=[("selected", "#FFFFFF")]
+        # LEFT CONTENT
+        left_content = ctk.CTkFrame(
+            container,
+            fg_color=BG
         )
 
-        cols = ("pn", "description", "barcode", "bt_mac")
-        tree = ttk.Treeview(tbl_frame, columns=cols, show="headings",
-                             style="PN.Treeview", height=4)
-        for col, label, w in [
-            ("pn",          "P/N",                   160),
-            ("description", "Description",            360),
-            ("barcode",     "Barcode",                180),
-            ("bt_mac",      "Bluetooth MAC Address",  200),
-        ]:
-            tree.heading(col, text=label)
-            tree.column(col, width=w, anchor="w")
-        tree.pack(fill="x", padx=6, pady=6)
+        left_content.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
 
-        # ── 5. PCBA Barcode ───────────────────────────────────────
-        pcba_box = self._card(main, "PCBA Barcode")
-        pcba_row = ctk.CTkFrame(pcba_box, fg_color="transparent")
-        pcba_row.pack(fill="x", pady=(2, 4))
-        icons = ["📄", "👥", "🔌", "🖥", "⬛", "📦", "⊞", "▐▌▐"]
-        for icon in icons:
-            cell = ctk.CTkFrame(pcba_row, fg_color="#172132",
-                                border_width=1, border_color=BORDER, corner_radius=4)
-            cell.pack(side="left", padx=2, pady=2)
-            inner_cell = ctk.CTkFrame(cell, fg_color="transparent")
-            inner_cell.pack(padx=4, pady=4)
-            ctk.CTkLabel(inner_cell, text=icon, font=("Segoe UI", 11),
-                         text_color=TEXT2, width=20).pack(side="left")
-            ctk.CTkEntry(inner_cell, fg_color="#172132", border_width=0,
-                         text_color=TEXT, width=85, height=24,
-                         state="disabled").pack(side="left")
+        # RIGHT PANEL
+        self._build_right_panel(container)
 
-        # ── 6. Instruction ────────────────────────────────────────
-        ctk.CTkLabel(main, text="Instruction :",
-                     font=("Segoe UI", 10, "bold"), text_color=TEXT).pack(
-                         anchor="w", padx=10, pady=(8, 0))
-        instr = ctk.CTkFrame(main, fg_color="#172132",
-                             border_width=1, border_color=BORDER,
-                             corner_radius=6, height=56)
-        instr.pack(fill="x", padx=6, pady=(2, 0))
-        instr.pack_propagate(False)
-        inner_i = ctk.CTkFrame(instr, fg_color="transparent")
-        inner_i.pack(fill="both", expand=True, padx=10)
-        ctk.CTkLabel(inner_i, text="🧑‍💻", font=("Segoe UI", 22),
-                     text_color=TEXT2).pack(side="left")
-        ctk.CTkLabel(inner_i, text="Please Scan Material SN",
-                     font=("Segoe UI", 14, "bold"),
-                     text_color=SUCCESS).pack(side="left", padx=14)
+        process = str(self.process_no)
 
-        # ── 7. Message ────────────────────────────────────────────
-        msg_outer = ctk.CTkFrame(main, fg_color=CARD_BG,
-                                 border_width=1, border_color=BORDER, corner_radius=6)
-        msg_outer.pack(fill="both", expand=True, padx=6, pady=(4, 6))
-        ctk.CTkLabel(msg_outer, text=" Message ",
-                     font=("Segoe UI", 10), text_color=TEXT2,
-                     fg_color=CARD_BG).pack(anchor="w", padx=8, pady=(4, 0))
-        msg_text = tk.Text(msg_outer, bg="#0A0F1A", fg=BLUE,
-                           font=("Consolas", 9), relief="flat", bd=4,
-                           insertbackground=TEXT, selectbackground="#2563EB")
-        msg_text.pack(fill="both", expand=True, padx=6, pady=(2, 6))
-        msg_text.config(state="disabled")
+        if process == "2":
+            CP2Page(left_content, self)
 
+        elif process == "3":
+            from cp3 import CP3Page
+            CP3Page(left_content, self)
+
+        else:
+            ctk.CTkLabel(
+                left_content,
+                text=f"PROCESS {process} NOT FOUND"
+            ).pack(expand=True)
+    
     # =========================================================================
     # RIGHT PANEL
     # =========================================================================

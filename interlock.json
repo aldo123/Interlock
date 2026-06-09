@@ -1,11 +1,11 @@
 {
     "Control Point": {
-        "Control Point Code": "BM01-VM01-CP20",
-        "Control Point Family": "CP20 V-Mini",
-        "Control Point Name": "CP20 - Pallet Label Printing",
-        "Data Point": "CP20 V-Mini",
+        "Control Point Code": "BW01-VM3",
+        "Control Point Family": "CP2-PCBAVM3",
+        "Control Point Name": "CP2-PCBAVM3",
+        "Data Point": "CP2-PCBAVM3",
         "Interlock ByPass": "No",
-        "Process": ""
+        "Process": "1"
     },
     "Documents": {
         "Max Document Size": "10485760"
