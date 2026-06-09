@@ -1,0 +1,53 @@
+{
+    "Message": {
+        "OK Color": "Green",
+        "OK Font": "Arial 24 Bold",
+        "NOK Color": "Red",
+        "NOK Font": "Arial 24 Bold"
+    },
+    "Communication Devices": {
+        "_table": [
+            {
+                "Device Name": "Scanner Part",
+                "Type": "COM",
+                "COM Port": "COM5",
+                "Baudrate": "115200",
+                "Parity": "None",
+                "Data Bits": "8",
+                "Stop Bits": "1"
+            },
+            {
+                "Device Name": "Scanner Product",
+                "Type": "COM",
+                "COM Port": "COM1",
+                "Baudrate": "115200",
+                "Parity": "None",
+                "Data Bits": "8",
+                "Stop Bits": "1"
+            }
+        ]
+    },
+    "Product Rules": {
+        "_table": [
+            {
+                "Product": "1",
+                "Part Voltage": "127V"
+            },
+            {
+                "Product": "2",
+                "Part Voltage": "240V"
+            }
+        ]
+    },
+    "Product Matrix Mapping": {
+        "Part Matrix": "47",
+        "PN": "1-7",
+        "Vendor": "",
+        "Voltage": "",
+        "HW Ver": "",
+        "FW Ver": "",
+        "ESP FW": "",
+        "Date": "",
+        "Serial Number": ""
+    }
+}
