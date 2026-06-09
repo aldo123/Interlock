@@ -12,7 +12,8 @@ SUCCESS  = "#22C55E"
 BORDER   = "#334155"
 BLUE     = "#3B82F6"
 HDR_BG   = "#111827"
-
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 class CP2Page:
 
@@ -165,7 +166,7 @@ class CP2Page:
 
         style = ttk.Style()
 
-        style.theme_use("default")
+        style.theme_use("clam")
 
         style.configure(
             "PN.Treeview",

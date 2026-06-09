@@ -5,7 +5,7 @@
         "Control Point Name": "CP2-PCBAVM3",
         "Data Point": "CP2-PCBAVM3",
         "Interlock ByPass": "No",
-        "Process": "1"
+        "Process": "2"
     },
     "Documents": {
         "Max Document Size": "10485760"

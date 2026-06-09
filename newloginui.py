@@ -22,11 +22,12 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
 
 
+
 class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        #self.overrideredirect(True)
+        self.overrideredirect(True)
 
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -580,7 +581,10 @@ class LoginWindow(ctk.CTk):
         self.after_cancel(self.clock_job)
         self.after_cancel(self.loading_job)
         from newmainform import NewMainForm
-        self.withdraw()
+        self.destroy()
+
+        from newmainform import NewMainForm
+
         app = NewMainForm(user)
         app.mainloop()
             

@@ -6,7 +6,7 @@ from settingform import SettingForm
 import json
 import os
 from cp2 import CP2Page
-from cp3 import CP3Page
+
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
@@ -596,6 +596,8 @@ class NewMainForm(ctk.CTk):
         style.configure("Rep.Treeview.Heading",
                         background="#1E3A5F", foreground=TEXT,
                         font=("Segoe UI", 10, "bold"), relief="flat")
+        
+        
         rep_tree = ttk.Treeview(rep_outer, columns=("action",),
                                 show="headings", style="Rep.Treeview", height=4)
         rep_tree.heading("action", text="Repair Action From Diagnosing")
