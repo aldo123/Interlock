@@ -166,27 +166,31 @@ class CP2Page:
 
         style = ttk.Style()
 
-        style.theme_use("clam")
-
         style.configure(
             "PN.Treeview",
             background="#172132",
             foreground="#E2E8F0",
             fieldbackground="#172132",
             borderwidth=0,
-            rowheight=28
+            rowheight=28,
+            font=("Segoe UI", 10)
         )
-
         style.configure(
             "PN.Treeview.Heading",
             background="#1E293B",
-            foreground="#E2E8F0"
+            foreground="#E2E8F0",
+            font=("Segoe UI", 10, "bold"),
+            relief="flat"
         )
 
         style.map(
             "PN.Treeview",
-            background=[("selected", "#2563EB")],
-            foreground=[("selected", "#FFFFFF")]
+            background=[("selected", "#2563EB"), ("!selected", "#172132")],
+            foreground=[("selected", "#FFFFFF"), ("!selected", "#E2E8F0")]
+        )
+        style.map(
+            "PN.Treeview.Heading",
+            background=[("active", "#1E3A5F"), ("!active", "#1E293B")]
         )
 
         cols = ("pn", "description", "barcode", "bt_mac")

@@ -6,6 +6,7 @@ from settingform import SettingForm
 import json
 import os
 from cp2 import CP2Page
+from reference import ReferencePage
 
 
 # ── Palette ──────────────────────────────────────────────────────────────────
@@ -432,12 +433,9 @@ class NewMainForm(ctk.CTk):
             expand=True
         )
 
-        ctk.CTkLabel(
+        ReferencePage(
             self.content_frame,
-            text="REFERENCE PAGE",
-            font=("Segoe UI",30,"bold")
-        ).pack(
-            expand=True
+            self
         )
     
     def load_cp_from_json(self):
@@ -589,6 +587,8 @@ class NewMainForm(ctk.CTk):
         rep_outer.pack(fill="both", expand=True, padx=8, pady=(4, 4))
 
         style = ttk.Style()
+        style.theme_use("clam")   # ← satu-satunya tempat yang boleh panggil ini
+
         style.configure("Rep.Treeview",
                         background="#172132", fieldbackground="#172132",
                         foreground=TEXT, rowheight=28,
@@ -596,6 +596,11 @@ class NewMainForm(ctk.CTk):
         style.configure("Rep.Treeview.Heading",
                         background="#1E3A5F", foreground=TEXT,
                         font=("Segoe UI", 10, "bold"), relief="flat")
+        style.map("Rep.Treeview",
+                background=[("selected", "#2563EB"), ("!selected", "#172132")],
+                foreground=[("selected", "#FFFFFF"), ("!selected", TEXT)])
+        style.map("Rep.Treeview.Heading",
+                background=[("active", "#1E3A5F"), ("!active", "#1E293B")])
         
         
         rep_tree = ttk.Treeview(rep_outer, columns=("action",),
