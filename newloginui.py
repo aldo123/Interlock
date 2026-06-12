@@ -450,7 +450,7 @@ class LoginWindow(ctk.CTk):
                 )
         except Exception:
             self.db_label.configure(
-                text="● B Disconnected", text_color="#EF4444"
+                text="● DB Disconnected", text_color="#EF4444"
             )
 
     # ======================================================

@@ -7,6 +7,7 @@ import json
 import os
 from cp2 import CP2Page
 from reference import ReferencePage
+from snlist import SNListPage
 
 
 # ── Palette ──────────────────────────────────────────────────────────────────
@@ -266,7 +267,6 @@ class NewMainForm(ctk.CTk):
 
         menu_items = [
             ("Main", self.show_main),
-            ("MaterialStatus", self.show_material_status),
             ("Maintenance", self.show_maintenance),
             ("SN List", self.show_sn_list),
             ("Reference", self.show_reference)
@@ -349,29 +349,6 @@ class NewMainForm(ctk.CTk):
             self.content_frame
         )
 
-    def show_material_status(self):
-
-        self.clear_content()
-
-        self.content_frame = ctk.CTkFrame(
-            self.body,
-            fg_color=BG
-        )
-
-        self.content_frame.pack(
-            side="left",
-            fill="both",
-            expand=True
-        )
-
-        ctk.CTkLabel(
-            self.content_frame,
-            text="MATERIAL STATUS PAGE",
-            font=("Segoe UI",30,"bold")
-        ).pack(
-            expand=True
-        )
-
     def show_maintenance(self):
 
         self.clear_content()
@@ -410,12 +387,9 @@ class NewMainForm(ctk.CTk):
             expand=True
         )
 
-        ctk.CTkLabel(
+        SNListPage(
             self.content_frame,
-            text="SN LIST PAGE",
-            font=("Segoe UI",30,"bold")
-        ).pack(
-            expand=True
+            self
         )
 
     def show_reference(self):
