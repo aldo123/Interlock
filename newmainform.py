@@ -8,6 +8,7 @@ import os
 from cp2 import CP2Page
 from reference import ReferencePage
 from snlist import SNListPage
+import time
 
 
 # ── Palette ──────────────────────────────────────────────────────────────────
@@ -45,9 +46,13 @@ class NewMainForm(ctk.CTk):
         self.content_frame = None
 
         self.load_cp_from_json()
+        self.machine_status = "IDLE"
+        self.last_move_success = None
+        self.downtime_active = False
 
         self._build_header()
         self._build_body()
+        self.after(1000, self.update_machine_status)
         
 
     # =========================================================================
@@ -90,6 +95,45 @@ class NewMainForm(ctk.CTk):
 
         user = ctk.CTkFrame(right, fg_color="transparent")
         user.pack(side="right", padx=(20, 0))
+
+        # ── Downtime Button ─────────────────────────────
+        # Machine Status + Downtime
+        status_frame = ctk.CTkFrame(
+            right,
+            fg_color="transparent"
+        )
+
+        status_frame.pack(
+            side="right",
+            padx=(60,20)
+        )
+
+        self.lbl_machine_status = ctk.CTkLabel(
+            status_frame,
+            text="⚪ IDLE",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#CBD5E1"
+        )
+
+        self.lbl_machine_status.pack(
+            pady=(0,4)
+        )
+
+        self.btn_downtime = ctk.CTkButton(
+            status_frame,
+            text="⏸ Downtime",
+            width=140,
+            height=32,
+            fg_color="#DC2626",
+            hover_color="#B91C1C",
+            text_color="white",
+            font=("Segoe UI", 11, "bold"),
+            corner_radius=6,
+            command=self.open_downtime
+        )
+
+        self.btn_downtime.pack()
+
         gear_btn = ctk.CTkButton(
             user,
             text="🔧",
@@ -480,7 +524,148 @@ class NewMainForm(ctk.CTk):
         self.lbl_spec_code.configure(
             text=f"Spec Code : {self.cp_family}"
         )
+
+    def update_machine_status(self):
+
+        # Downtime override
+        if self.machine_status == "MACHINE DOWN":
+            self.after(1000, self.update_machine_status)
+            return
+
+        if self.machine_status == "WAITING MATERIAL":
+            self.after(1000, self.update_machine_status)
+            return
+
+        # Belum pernah move success
+        if self.last_move_success is None:
+
+            self.machine_status = "IDLE"
+
+            self.lbl_machine_status.configure(
+                text="⚪ IDLE",
+                text_color="#CBD5E1"
+            )
+
+            self.after(1000, self.update_machine_status)
+            return
+
+        elapsed = time.time() - self.last_move_success
+
+        if elapsed < 60:
+
+            self.machine_status = "RUNNING"
+
+            self.lbl_machine_status.configure(
+                text="🟢 RUNNING",
+                text_color="#22C55E"
+            )
+
+        else:
+
+            self.machine_status = "IDLE"
+
+            self.lbl_machine_status.configure(
+                text="⚪ IDLE",
+                text_color="#CBD5E1"
+            )
+
+        self.after(1000, self.update_machine_status)
     
+    def open_downtime(self):
+
+        popup = ctk.CTkToplevel(self)
+        popup.title("Downtime Selection")
+        popup_width = 520
+        popup_height = 250
+
+        self.update_idletasks()
+
+        x = self.winfo_x() + (self.winfo_width() // 2) - (popup_width // 2)
+        y = self.winfo_y() + (self.winfo_height() // 2) - (popup_height // 2)
+
+        popup.geometry(f"{popup_width}x{popup_height}+{x}+{y}")
+        popup.resizable(False, False)
+        popup.grab_set()
+
+        popup.configure(fg_color="#0F172A")
+
+        ctk.CTkLabel(
+            popup,
+            text="SELECT DOWNTIME TYPE",
+            font=("Segoe UI", 20, "bold"),
+            text_color="#22C55E"
+        ).pack(pady=(25, 10))
+
+        ctk.CTkLabel(
+            popup,
+            text="Please choose downtime category",
+            font=("Segoe UI", 11),
+            text_color="#94A3B8"
+        ).pack(pady=(0, 20))
+
+        button_frame = ctk.CTkFrame(
+            popup,
+            fg_color="transparent"
+        )
+        button_frame.pack(
+            pady=25,
+            padx=20,
+            fill="x"
+        )
+
+        ctk.CTkButton(
+            button_frame,
+            text="🔧\nCALL MAINTENANCE",
+            width=180,
+            height=100,
+            fg_color="#DC2626",
+            hover_color="#B91C1C",
+            font=("Segoe UI", 14, "bold"),
+            command=lambda: self.call_maintenance(popup)
+        ).pack(
+            side="left",
+            expand=True,
+            padx=(0,10)
+        )
+
+        ctk.CTkButton(
+            button_frame,
+            text="📦\nWAITING MATERIAL",
+            width=180,
+            height=100,
+            fg_color="#F59E0B",
+            hover_color="#D97706",
+            font=("Segoe UI", 14, "bold"),
+            command=lambda: self.waiting_material(popup)
+        ).pack(
+            side="left",
+            expand=True,
+            padx=(10,0)
+        )
+
+    def call_maintenance(self, popup):
+
+        self.machine_status = "MACHINE DOWN"
+
+        self.lbl_machine_status.configure(
+            text="🔴 MACHINE DOWN",
+            text_color="#EF4444"
+        )
+
+        popup.destroy()
+
+
+    def waiting_material(self, popup):
+
+        self.machine_status = "WAITING MATERIAL"
+
+        self.lbl_machine_status.configure(
+            text="🟡 WAITING MATERIAL",
+            text_color="#F59E0B"
+        )
+
+        popup.destroy()
+        
     
     # =========================================================================
     # MAIN CONTENT

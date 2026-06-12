@@ -224,9 +224,7 @@ class CP2Page:
                          state="disabled").pack(side="left")
 
         # ── 6. Instruction ────────────────────────────────────────
-        ctk.CTkLabel(main, text="Instruction :",
-                     font=("Segoe UI", 10, "bold"), text_color=TEXT).pack(
-                         anchor="w", padx=10, pady=(8, 0))
+        
         instr = ctk.CTkFrame(main, fg_color="#172132",
                              border_width=1, border_color=BORDER,
                              corner_radius=6, height=56)

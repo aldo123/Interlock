@@ -83,7 +83,15 @@ class InterlockForm:
 
         dlg = ctk.CTkToplevel(parent)
         dlg.title("Interlock Setting")
-        dlg.geometry("540x480")
+        width = 540
+        height = 480
+
+        parent.update_idletasks()
+
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - (width // 2)
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - (height // 2)
+
+        dlg.geometry(f"{width}x{height}+{x}+{y}")
         dlg.transient(parent)
         dlg.grab_set()
 
