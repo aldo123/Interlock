@@ -1,6 +1,9 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
+from PIL import Image
+from datetime import datetime
 from interlockform import InterlockForm
 from settingform import SettingForm
 import json
@@ -9,7 +12,8 @@ from cp2 import CP2Page
 from reference import ReferencePage
 from snlist import SNListPage
 import time
-
+from manuallogin import ManualLoginDialog
+from database import DatabaseManager
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
@@ -28,6 +32,8 @@ ctk.set_default_color_theme("blue")
 class NewMainForm(ctk.CTk):
     def __init__(self, user=None):
         super().__init__()
+        self.db = DatabaseManager()
+        self.db.connect()
         self.user = user or {}
         self.title("WIK CP02-PCBAVM2")
         self.geometry("1440x880")
@@ -392,8 +398,79 @@ class NewMainForm(ctk.CTk):
         self._build_main_content(
             self.content_frame
         )
+    
 
     def show_maintenance(self):
+
+        dlg = ManualLoginDialog(self)
+
+        self.wait_window(dlg)
+
+        username = getattr(dlg, "username", "").strip()
+        password = getattr(dlg, "password", "").strip()
+        card_id  = getattr(dlg, "card_id", "").strip()
+
+        # Cancel
+        if not username and not password and not card_id:
+            return
+
+        user = None
+
+        # Login pakai ID Card
+        if card_id:
+
+            sql = """
+                SELECT username, role, id_card
+                FROM users
+                WHERE id_card=%s
+                LIMIT 1
+            """
+
+            user = self.db.fetch_one(
+                sql,
+                (card_id,)
+            )
+
+        # Login pakai username + password
+        else:
+
+            sql = """
+                SELECT username, role, id_card
+                FROM users
+                WHERE username=%s
+                AND password=%s
+                LIMIT 1
+            """
+
+            user = self.db.fetch_one(
+                sql,
+                (
+                    username,
+                    password
+                )
+            )
+
+        if not user:
+
+            messagebox.showerror(
+                "Login Failed",
+                "Invalid Username / Password / Card ID"
+            )
+
+            return
+        
+        if user["role"].upper() != "ENGINEER":
+
+            messagebox.showerror(
+                "Access Denied",
+                "Engineer access required"
+            )
+
+            return
+
+        self.open_maintenance_page()
+
+    def open_maintenance_page(self):
 
         self.clear_content()
 
@@ -411,10 +488,8 @@ class NewMainForm(ctk.CTk):
         ctk.CTkLabel(
             self.content_frame,
             text="MAINTENANCE PAGE",
-            font=("Segoe UI",30,"bold")
-        ).pack(
-            expand=True
-        )
+            font=("Segoe UI", 30, "bold")
+        ).pack(expand=True)
 
     def show_sn_list(self):
 

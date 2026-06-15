@@ -48,7 +48,7 @@ CP_TABLE_MAP = {
 
 CP_DDL_MAP = {
     "1": """
-        CREATE TABLE IF NOT EXISTS snlist_cp2 (
+        CREATE TABLE IF NOT EXISTS snlist_cp1 (
             id             INTEGER PRIMARY KEY AUTOINCREMENT,
             date_time      TEXT,
             chassis_sn     TEXT,
@@ -60,7 +60,7 @@ CP_DDL_MAP = {
         )
     """,
     "2": """
-        CREATE TABLE IF NOT EXISTS snlist_cp1 (
+        CREATE TABLE IF NOT EXISTS snlist_cp2 (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             date_time   TEXT,
             chassis_sn  TEXT,
