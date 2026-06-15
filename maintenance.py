@@ -110,6 +110,7 @@ class MaintenanceDB:
             SELECT *
             FROM downtime_events
             WHERE datetime(start_time) BETWEEN datetime(?) AND datetime(?)
+            AND end_time IS NOT NULL
             ORDER BY start_time DESC
         """
         with self.cx() as c:
@@ -258,40 +259,40 @@ class MaintenancePage(ctk.CTkFrame):
         self._fill_active_info(ai)
 
     def _fill_status_card(self, card):
-        ctk.CTkLabel(card, text="MACHINE STATUS", font=("Segoe UI",8,"bold"),
+        ctk.CTkLabel(card, text="MACHINE STATUS", font=("Segoe UI",14,"bold"),
                      text_color=TEXT2).pack(anchor="center", pady=(8,2))
 
         status_row = ctk.CTkFrame(card, fg_color="transparent")
         status_row.pack(anchor="center", pady=(4,0))
-        self.ms_icon = ctk.CTkLabel(status_row, text="●", font=("Segoe UI",18),
+        self.ms_icon = ctk.CTkLabel(status_row, text="●", font=("Segoe UI",24),
                                     text_color=GREEN)
         self.ms_icon.pack(side="left", padx=(0,6))
         self.ms_text = ctk.CTkLabel(status_row, text="RUNNING / IDLE",
-                                    font=("Segoe UI",13,"bold"), text_color=GREEN)
+                                    font=("Segoe UI",18,"bold"), text_color=GREEN)
         self.ms_text.pack(side="left")
 
         self.since_lbl = ctk.CTkLabel(card, text="Since        -",
-                                      font=("Segoe UI",9), text_color=TEXT2)
+                                      font=("Segoe UI",14), text_color=TEXT2)
         self.since_lbl.pack(anchor="center", pady=(6,0))
         self.dur_lbl = ctk.CTkLabel(card, text="Duration   00:00:00",
-                                    font=("Segoe UI",11,"bold"), text_color=GREEN)
+                                    font=("Segoe UI",18,"bold"), text_color=GREEN)
         self.dur_lbl.pack(anchor="center", pady=(2,10))
 
     def _fill_kpi_card(self, card, title, icon, val, sub, clr, attr):
-        ctk.CTkLabel(card, text=title, font=("Segoe UI",8,"bold"),
+        ctk.CTkLabel(card, text=title, font=("Segoe UI",14,"bold"),
                      text_color=TEXT2).pack(anchor="center", pady=(10,2))
-        ctk.CTkLabel(card, text=icon, font=("Segoe UI",24),
+        ctk.CTkLabel(card, text=icon, font=("Segoe UI",28),
                      text_color=clr).pack(anchor="center", pady=(0,2))
-        lbl = ctk.CTkLabel(card, text=val, font=("Segoe UI",20,"bold"),
+        lbl = ctk.CTkLabel(card, text=val, font=("Segoe UI",24,"bold"),
                            text_color=TEXT)
         lbl.pack(anchor="center")
-        ctk.CTkLabel(card, text=sub, font=("Segoe UI",8),
+        ctk.CTkLabel(card, text=sub, font=("Segoe UI",14),
                      text_color=TEXT2).pack(anchor="center", pady=(0,10))
         setattr(self, attr, lbl)
 
     def _fill_active_info(self, card):
         ctk.CTkLabel(card, text="ACTIVE DOWNTIME INFO",
-                     font=("Segoe UI",8,"bold"), text_color=TEXT2).pack(anchor="center", pady=(8,4))
+                     font=("Segoe UI",14,"bold"), text_color=TEXT2).pack(anchor="center", pady=(8,4))
 
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
         info_frame.pack(fill="x", padx=10, pady=(2,8))
@@ -300,16 +301,23 @@ class MaintenancePage(ctk.CTkFrame):
         info_frame.grid_columnconfigure(2, weight=2)
 
         self.adi = {}
-        labels = [("Downtime ID","-"), ("Start Time","-"),
-                  ("Technician", self.cfg.get("technician","-")),
-                  ("Shift", self.cfg.get("shift","-"))]
+        labels = [
+            ("Downtime ID","-"),
+            ("Start Time","-"),
+            (
+                "Technician",
+                self.user.get("username","-")
+                if isinstance(self.user, dict)
+                else str(self.user)
+            )
+        ]
 
         for i, (key, val) in enumerate(labels):
-            ctk.CTkLabel(info_frame, text=key, font=("Segoe UI",8),
+            ctk.CTkLabel(info_frame, text=key, font=("Segoe UI",14),
                          text_color=TEXT2, anchor="w").grid(row=i, column=0, sticky="w", pady=1)
-            ctk.CTkLabel(info_frame, text=":", font=("Segoe UI",8),
+            ctk.CTkLabel(info_frame, text=":", font=("Segoe UI",14),
                          text_color=TEXT2).grid(row=i, column=1, padx=(2,4), pady=1)
-            v = ctk.CTkLabel(info_frame, text=val, font=("Segoe UI",8,"bold"),
+            v = ctk.CTkLabel(info_frame, text=val, font=("Segoe UI",14,"bold"),
                              text_color=TEXT, anchor="w")
             v.grid(row=i, column=2, sticky="w", pady=1)
             self.adi[key] = v
@@ -498,7 +506,11 @@ class MaintenancePage(ctk.CTkFrame):
             "start_time":  self.dt_start.strftime("%Y-%m-%d %H:%M:%S"),
             "end_time": None, "duration": None, "downtime_type": None,
             "root_cause": None, "corrective_action": None,
-            "technician": self.cfg.get("technician",""),
+            "technician": (
+                self.user.get("username","")
+                if isinstance(self.user, dict)
+                else str(self.user)
+            ),
             "shift": self.cfg.get("shift",""),
             "notes": None,
             "machine_code": self.cfg.get("machine_code",""),
@@ -531,9 +543,13 @@ class MaintenancePage(ctk.CTkFrame):
         if hasattr(self, 'adi') and self.adi.get("Start Time") and self.adi["Start Time"].winfo_exists():
             self.adi["Start Time"].configure(text=self.dt_start.strftime('%I:%M:%S %p'))
         if hasattr(self, 'adi') and self.adi.get("Technician") and self.adi["Technician"].winfo_exists():
-            self.adi["Technician"].configure(text=self.cfg.get("technician","-"))
-        if hasattr(self, 'adi') and self.adi.get("Shift") and self.adi["Shift"].winfo_exists():
-            self.adi["Shift"].configure(text=self.cfg.get("shift","-"))
+            self.adi["Technician"].configure(
+                text=(
+                    self.user.get("username","-")
+                    if isinstance(self.user, dict)
+                    else str(self.user)
+                )
+            )
 
     def _return_idle(self):
         if not self.winfo_exists():
@@ -583,8 +599,17 @@ class MaintenancePage(ctk.CTkFrame):
         if hasattr(self, 'since_lbl') and self.since_lbl.winfo_exists():
             self.since_lbl.configure(text="Since        -")
         for key, v in self.adi.items():
-            if v.winfo_exists():
-                v.configure(text="-")
+
+            if not v.winfo_exists():
+                continue
+
+            if key == "Technician":
+                username = (
+                    self.user.get("username", "-")
+                    if isinstance(self.user, dict)
+                    else str(self.user)
+                )
+                v.configure(text=username)
         for tb in [self.rc_txt, self.ca_txt, self.notes_txt]:
             if tb.winfo_exists():
                 tb.delete("1.0","end")
