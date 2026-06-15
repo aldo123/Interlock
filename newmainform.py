@@ -15,6 +15,7 @@ import time
 from manuallogin import ManualLoginDialog
 from database import DatabaseManager
 from maintenance import MaintenancePage
+from maintenance import MaintenanceDB
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
@@ -56,6 +57,8 @@ class NewMainForm(ctk.CTk):
         self.machine_status = "IDLE"
         self.last_move_success = None
         self.downtime_active = False
+        self.downtime_start = None
+        self.downtime_id = None
 
         self._build_header()
         self._build_body()
@@ -673,9 +676,29 @@ class NewMainForm(ctk.CTk):
     def call_maintenance(self, popup):
 
         self.machine_status = "MACHINE DOWN"
-        if hasattr(self, "maintenance_page"):
 
-            self.maintenance_page.start_downtime()
+        self.downtime_active = True
+        self.downtime_start = datetime.now()
+
+        self.downtime_id = (
+            f"DT-{self.downtime_start.strftime('%Y%m%d%H%M%S')}"
+        )
+
+        db = MaintenanceDB()
+
+        db.insert_downtime({
+            "downtime_id": self.downtime_id,
+            "start_time": self.downtime_start.strftime("%Y-%m-%d %H:%M:%S"),
+            "end_time": None,
+            "duration": None,
+            "downtime_type": None,
+            "root_cause": None,
+            "corrective_action": None,
+            "technician": self.user.get("username",""),
+            "shift": "Shift A",
+            "notes": None,
+            "machine_code": self.cp_code
+        })
 
         self.lbl_machine_status.configure(
             text="🔴 MACHINE DOWN",

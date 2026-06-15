@@ -47,7 +47,6 @@ class LoginWindow(ctk.CTk):
 
         self.db = DatabaseManager()
         self.db.connect()
-
         self.build_ui()
         self.update_clock()
         self.animate_loading()
