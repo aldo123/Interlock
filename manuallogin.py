@@ -146,6 +146,8 @@ class ManualLoginDialog(ctk.CTkToplevel):
             fg_color=CARD_BG, border_color=BORDER, border_width=1,
             text_color=TEXT, font=("Segoe UI", 12))
         self.card_entry.pack(side="left", fill="x", expand=True)
+        # AUTO LOGIN SAAT ENTER
+        self.card_entry.bind("<Return>", lambda e: self._on_ok())
         self.card_entry.bind("<FocusIn>",
             lambda e: self.card_entry.configure(border_color=GREEN))
         self.card_entry.bind("<FocusOut>",

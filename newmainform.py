@@ -14,6 +14,7 @@ from snlist import SNListPage
 import time
 from manuallogin import ManualLoginDialog
 from database import DatabaseManager
+from maintenance import MaintenancePage
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
@@ -58,6 +59,7 @@ class NewMainForm(ctk.CTk):
 
         self._build_header()
         self._build_body()
+        self.refresh_permissions()
         self.after(1000, self.update_machine_status)
         
 
@@ -140,7 +142,7 @@ class NewMainForm(ctk.CTk):
 
         self.btn_downtime.pack()
 
-        gear_btn = ctk.CTkButton(
+        self.gear_btn = ctk.CTkButton(
             user,
             text="🔧",
             width=36,
@@ -153,24 +155,39 @@ class NewMainForm(ctk.CTk):
             command=self.show_setting_menu
         )
 
-        gear_btn.pack(
+        self.gear_btn.pack(
             side="left",
             padx=(0, 8)
         )
-        ctk.CTkButton(user, text="👤", width=36, height=36,
-                      fg_color="transparent", hover_color="#2563EB",
-                      text_color=TEXT, font=("Segoe UI", 16),
-                      corner_radius=18).pack(side="left", padx=(0, 4))
+        user_btn = ctk.CTkButton(
+            user,
+            text="👤",
+            width=36,
+            height=36,
+            fg_color="transparent",
+            hover_color="#2563EB",
+            text_color=TEXT,
+            font=("Segoe UI", 16),
+            corner_radius=18,
+            command=self.show_user_menu
+        )
+
+        user_btn.pack(
+            side="left",
+            padx=(0, 8)
+        )
         username = self.user.get("username", "Guest")
         role = self.user.get("role", "")
 
-        ctk.CTkLabel(
+        self.lbl_user = ctk.CTkLabel(
             user,
             text=f"{username}\n{role}",
             font=("Segoe UI", 10),
             text_color=TEXT2,
             justify="left"
-        ).pack(side="left")
+        )
+
+        self.lbl_user.pack(side="left")
 
         codes = ctk.CTkFrame(right, fg_color="transparent")
         codes.pack(side="right")
@@ -402,76 +419,6 @@ class NewMainForm(ctk.CTk):
 
     def show_maintenance(self):
 
-        dlg = ManualLoginDialog(self)
-
-        self.wait_window(dlg)
-
-        username = getattr(dlg, "username", "").strip()
-        password = getattr(dlg, "password", "").strip()
-        card_id  = getattr(dlg, "card_id", "").strip()
-
-        # Cancel
-        if not username and not password and not card_id:
-            return
-
-        user = None
-
-        # Login pakai ID Card
-        if card_id:
-
-            sql = """
-                SELECT username, role, id_card
-                FROM users
-                WHERE id_card=%s
-                LIMIT 1
-            """
-
-            user = self.db.fetch_one(
-                sql,
-                (card_id,)
-            )
-
-        # Login pakai username + password
-        else:
-
-            sql = """
-                SELECT username, role, id_card
-                FROM users
-                WHERE username=%s
-                AND password=%s
-                LIMIT 1
-            """
-
-            user = self.db.fetch_one(
-                sql,
-                (
-                    username,
-                    password
-                )
-            )
-
-        if not user:
-
-            messagebox.showerror(
-                "Login Failed",
-                "Invalid Username / Password / Card ID"
-            )
-
-            return
-        
-        if user["role"].upper() != "ENGINEER":
-
-            messagebox.showerror(
-                "Access Denied",
-                "Engineer access required"
-            )
-
-            return
-
-        self.open_maintenance_page()
-
-    def open_maintenance_page(self):
-
         self.clear_content()
 
         self.content_frame = ctk.CTkFrame(
@@ -485,11 +432,16 @@ class NewMainForm(ctk.CTk):
             expand=True
         )
 
-        ctk.CTkLabel(
+        self.maintenance_page = MaintenancePage(
             self.content_frame,
-            text="MAINTENANCE PAGE",
-            font=("Segoe UI", 30, "bold")
-        ).pack(expand=True)
+            user=self.user,
+            main_form=self
+        )
+
+        self.maintenance_page.pack(
+            fill="both",
+            expand=True
+        )
 
     def show_sn_list(self):
 
@@ -721,6 +673,9 @@ class NewMainForm(ctk.CTk):
     def call_maintenance(self, popup):
 
         self.machine_status = "MACHINE DOWN"
+        if hasattr(self, "maintenance_page"):
+
+            self.maintenance_page.start_downtime()
 
         self.lbl_machine_status.configure(
             text="🔴 MACHINE DOWN",
@@ -740,7 +695,346 @@ class NewMainForm(ctk.CTk):
         )
 
         popup.destroy()
-        
+    
+    def show_user_menu(self):
+
+        popup = ctk.CTkToplevel(self)
+
+        popup.overrideredirect(True)
+        popup.attributes("-topmost", True)
+
+        x = self.winfo_pointerx()
+        y = self.winfo_pointery()
+
+        popup.geometry(f"220x130+{x-180}+{y+10}")
+
+        popup.configure(
+            fg_color="#0F172A"
+        )
+
+        frame = ctk.CTkFrame(
+            popup,
+            fg_color="#1E293B",
+            corner_radius=8,
+            border_width=1,
+            border_color="#334155"
+        )
+
+        frame.pack(
+            fill="both",
+            expand=True,
+            padx=2,
+            pady=2
+        )
+
+        ctk.CTkLabel(
+            frame,
+            text="User",
+            font=("Segoe UI", 14, "bold"),
+            text_color="#22C55E"
+        ).pack(
+            pady=(8,5)
+        )
+
+        ctk.CTkButton(
+            frame,
+            text="🔑 Change Password",
+            anchor="w",
+            height=36,
+            fg_color="transparent",
+            hover_color="#2563EB",
+            command=lambda: [
+                popup.destroy(),
+                self.change_password()
+            ]
+        ).pack(
+            fill="x",
+            padx=10,
+            pady=2
+        )
+
+        ctk.CTkButton(
+            frame,
+            text="🔄 Relogin",
+            anchor="w",
+            height=36,
+            fg_color="transparent",
+            hover_color="#2563EB",
+            command=lambda: [
+                popup.destroy(),
+                self.relogin()
+            ]
+        ).pack(
+            fill="x",
+            padx=10,
+            pady=2
+        )
+
+        popup.focus_force()
+
+        popup.bind(
+            "<FocusOut>",
+            lambda e: popup.destroy()
+        )
+    
+    def relogin(self):
+
+        dlg = ManualLoginDialog(self)
+
+        self.wait_window(dlg)
+
+        username = getattr(dlg, "username", "").strip()
+        password = getattr(dlg, "password", "").strip()
+        card_id  = getattr(dlg, "card_id", "").strip()
+
+        if not username and not password and not card_id:
+            return
+
+        user = None
+
+        try:
+
+            if card_id:
+
+                sql = """
+                    SELECT username, role, id_card
+                    FROM users
+                    WHERE id_card=%s
+                    LIMIT 1
+                """
+
+                user = self.db.fetch_one(
+                    sql,
+                    (card_id,)
+                )
+
+            else:
+
+                sql = """
+                    SELECT username, role, id_card
+                    FROM users
+                    WHERE username=%s
+                    AND password=%s
+                    LIMIT 1
+                """
+
+                user = self.db.fetch_one(
+                    sql,
+                    (
+                        username,
+                        password
+                    )
+                )
+
+            if not user:
+
+                messagebox.showerror(
+                    "Login Failed",
+                    "Invalid Username / Password / Card ID"
+                )
+
+                return
+
+            self.user = user
+
+            self.refresh_user_info()
+            self.refresh_permissions()
+
+            messagebox.showinfo(
+                "Success",
+                f"Login as {user['username']}"
+            )
+
+        except Exception as e:
+
+            messagebox.showerror(
+                "Database Error",
+                str(e)
+            )
+
+    def change_password(self):
+
+        popup = ctk.CTkToplevel(self)
+
+         # Hilangkan title bar Windows
+        popup.overrideredirect(True)
+
+        popup.grab_set()
+        popup.lift()
+        popup.focus_force()
+
+        W = 420
+        H = 240
+
+        px = self.winfo_rootx() + (self.winfo_width() - W) // 2
+        py = self.winfo_rooty() + (self.winfo_height() - H) // 2
+
+        popup.geometry(f"{W}x{H}+{px}+{py}")
+
+        popup.configure(
+            fg_color="#0F172A"
+        )
+
+        card = ctk.CTkFrame(
+            popup,
+            fg_color="#111827",
+            border_width=1,
+            border_color="#22C55E",
+            corner_radius=12
+        )
+
+        card.pack(
+            fill="both",
+            expand=True,
+            padx=10,
+            pady=10
+        )
+
+        ctk.CTkLabel(
+            card,
+            text="Change Password",
+            font=("Segoe UI",18,"bold"),
+            text_color="#22C55E"
+        ).pack(
+            pady=(20,15)
+        )
+
+        new_pwd = ctk.CTkEntry(
+            card,
+            placeholder_text="New Password",
+            height=40,
+            show="*"
+        )
+
+        new_pwd.pack(
+            fill="x",
+            padx=25
+        )
+
+        def save_password():
+
+            password = new_pwd.get().strip()
+
+            if not password:
+
+                messagebox.showwarning(
+                    "Warning",
+                    "Please enter new password"
+                )
+
+                return
+
+            username = self.user.get("username")
+
+            try:
+
+                sql = """
+                    UPDATE users
+                    SET password=%s
+                    WHERE username=%s
+                """
+
+                cursor = self.db.conn.cursor()
+
+                cursor.execute(
+                    sql,
+                    (
+                        password,
+                        username
+                    )
+                )
+
+                self.db.conn.commit()
+
+                cursor.close()
+                popup.destroy()
+                messagebox.showinfo(
+                    "Success",
+                    "Password updated successfully"
+                )
+
+                
+
+            except Exception as e:
+
+                messagebox.showerror(
+                    "Database Error",
+                    str(e)
+                )
+
+        btn_frame = ctk.CTkFrame(
+            card,
+            fg_color="transparent"
+        )
+
+        btn_frame.pack(
+            fill="x",
+            padx=25,
+            pady=20
+        )
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Close",
+            fg_color="#374151",
+            command=popup.destroy
+        ).pack(
+            side="left",
+            expand=True,
+            fill="x",
+            padx=(0,5)
+        )
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Save",
+            fg_color="#22C55E",
+            text_color="black",
+            command=save_password
+        ).pack(
+            side="left",
+            expand=True,
+            fill="x",
+            padx=(5,0)
+        )
+    
+    def refresh_user_info(self):
+
+        username = self.user.get("username", "Guest")
+        role = self.user.get("role", "")
+
+        self.lbl_user.configure(
+            text=f"{username}\n{role}"
+        )
+    
+    def refresh_permissions(self):
+
+        role = str(
+            self.user.get("role", "")
+        ).upper()
+
+        is_engineer = role == "ENGINEER"
+
+        # Maintenance
+        if "Maintenance" in self.menu_buttons:
+
+            self.menu_buttons["Maintenance"].configure(
+                state="normal" if is_engineer else "disabled"
+            )
+
+        # Reference
+        if "Reference" in self.menu_buttons:
+
+            self.menu_buttons["Reference"].configure(
+                state="normal" if is_engineer else "disabled"
+            )
+
+        # Setting Icon
+        if hasattr(self, "gear_btn"):
+
+            self.gear_btn.configure(
+                state="normal" if is_engineer else "disabled"
+            )
     
     # =========================================================================
     # MAIN CONTENT
