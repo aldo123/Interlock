@@ -94,6 +94,8 @@ class SettingForm:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
+            
+
     # =========================================================================
     # SHOW DIALOG
     # =========================================================================
@@ -636,6 +638,365 @@ class SettingForm:
                     padx=5
                 )
 
+                def edit_device():
+
+                    sel = device_tree.selection()
+
+                    if not sel:
+
+                        messagebox.showwarning(
+                            "Warning",
+                            "Please select device first",
+                            parent=dlg
+                        )
+
+                        return
+
+                    idx = device_tree.index(sel[0])
+
+                    device = device_rows[idx]
+
+                    popup = ctk.CTkToplevel(dlg)
+
+                    popup.title("Edit Device")
+
+                    popup.geometry("450x420")
+
+                    popup.transient(dlg)
+
+                    popup.grab_set()
+
+                    popup.configure(
+                        fg_color=CARD_BG
+                    )
+
+                    # =====================================================
+                    # DEVICE NAME
+                    # =====================================================
+
+                    ctk.CTkLabel(
+                        popup,
+                        text="Device Name",
+                        text_color=TEXT
+                    ).pack(
+                        pady=(15,5)
+                    )
+
+                    e_name = ctk.CTkEntry(
+                        popup,
+                        width=250
+                    )
+
+                    e_name.pack()
+
+                    e_name.insert(
+                        0,
+                        device["Device Name"]
+                    )
+
+                    # =====================================================
+                    # TYPE
+                    # =====================================================
+
+                    type_var = ctk.StringVar(
+                        value=device["Type"]
+                    )
+
+                    type_menu = ctk.CTkOptionMenu(
+                        popup,
+                        values=["TCP","COM"],
+                        variable=type_var
+                    )
+
+                    type_menu.pack(
+                        pady=10
+                    )
+
+                    detail_frame = ctk.CTkFrame(
+                        popup,
+                        fg_color="transparent"
+                    )
+
+                    detail_frame.pack(
+                        fill="x"
+                    )
+
+                    # =====================================================
+                    # TCP FRAME
+                    # =====================================================
+
+                    tcp_frame = ctk.CTkFrame(
+                        detail_frame,
+                        fg_color="transparent"
+                    )
+
+                    ctk.CTkLabel(
+                        tcp_frame,
+                        text="IP Address",
+                        text_color=TEXT
+                    ).pack()
+
+                    e_ip = ctk.CTkEntry(
+                        tcp_frame,
+                        width=250
+                    )
+
+                    e_ip.pack()
+
+                    ctk.CTkLabel(
+                        tcp_frame,
+                        text="Port",
+                        text_color=TEXT
+                    ).pack()
+
+                    e_port = ctk.CTkEntry(
+                        tcp_frame,
+                        width=250
+                    )
+
+                    e_port.pack()
+
+                    # =====================================================
+                    # COM FRAME
+                    # =====================================================
+
+                    com_frame = ctk.CTkFrame(
+                        detail_frame,
+                        fg_color="transparent"
+                    )
+
+                    ctk.CTkLabel(
+                        com_frame,
+                        text="COM Port",
+                        text_color=TEXT
+                    ).pack()
+
+                    e_com = ctk.CTkEntry(
+                        com_frame,
+                        width=250
+                    )
+
+                    e_com.pack()
+
+                    baud_menu = ctk.CTkOptionMenu(
+                        com_frame,
+                        values=[
+                            "1200",
+                            "2400",
+                            "4800",
+                            "9600",
+                            "19200",
+                            "38400",
+                            "57600",
+                            "115200"
+                        ]
+                    )
+
+                    baud_menu.pack(
+                        pady=4
+                    )
+
+                    parity_menu = ctk.CTkOptionMenu(
+                        com_frame,
+                        values=[
+                            "None",
+                            "Even",
+                            "Odd"
+                        ]
+                    )
+
+                    parity_menu.pack(
+                        pady=4
+                    )
+
+                    bit_menu = ctk.CTkOptionMenu(
+                        com_frame,
+                        values=[
+                            "5",
+                            "6",
+                            "7",
+                            "8"
+                        ]
+                    )
+
+                    bit_menu.pack(
+                        pady=4
+                    )
+
+                    stop_menu = ctk.CTkOptionMenu(
+                        com_frame,
+                        values=[
+                            "1",
+                            "1.5",
+                            "2"
+                        ]
+                    )
+
+                    stop_menu.pack(
+                        pady=4
+                    )
+
+                    # =====================================================
+                    # LOAD CURRENT DATA
+                    # =====================================================
+
+                    if device["Type"] == "TCP":
+
+                        e_ip.insert(
+                            0,
+                            device.get(
+                                "IP Address",
+                                ""
+                            )
+                        )
+
+                        e_port.insert(
+                            0,
+                            device.get(
+                                "Port",
+                                ""
+                            )
+                        )
+
+                    else:
+
+                        e_com.insert(
+                            0,
+                            device.get(
+                                "COM Port",
+                                ""
+                            )
+                        )
+
+                        baud_menu.set(
+                            device.get(
+                                "Baudrate",
+                                "115200"
+                            )
+                        )
+
+                        parity_menu.set(
+                            device.get(
+                                "Parity",
+                                "None"
+                            )
+                        )
+
+                        bit_menu.set(
+                            device.get(
+                                "Data Bits",
+                                "8"
+                            )
+                        )
+
+                        stop_menu.set(
+                            device.get(
+                                "Stop Bits",
+                                "1"
+                            )
+                        )
+
+                    # =====================================================
+                    # TYPE CHANGE
+                    # =====================================================
+
+                    def type_changed(choice):
+
+                        tcp_frame.pack_forget()
+
+                        com_frame.pack_forget()
+
+                        if choice == "TCP":
+
+                            tcp_frame.pack(
+                                fill="x"
+                            )
+
+                        else:
+
+                            com_frame.pack(
+                                fill="x"
+                            )
+
+                    type_menu.configure(
+                        command=type_changed
+                    )
+
+                    type_changed(
+                        device["Type"]
+                    )
+
+                    # =====================================================
+                    # SAVE
+                    # =====================================================
+
+                    def save_edit():
+
+                        if not e_name.get().strip():
+
+                            messagebox.showerror(
+                                "Error",
+                                "Device Name is required",
+                                parent=popup
+                            )
+
+                            return
+
+                        if type_var.get() == "TCP":
+
+                            device_rows[idx] = {
+
+                                "Device Name": e_name.get().strip(),
+
+                                "Type": "TCP",
+
+                                "IP Address": e_ip.get().strip(),
+
+                                "Port": e_port.get().strip()
+                            }
+
+                        else:
+
+                            device_rows[idx] = {
+
+                                "Device Name": e_name.get().strip(),
+
+                                "Type": "COM",
+
+                                "COM Port": e_com.get().strip(),
+
+                                "Baudrate": baud_menu.get(),
+
+                                "Parity": parity_menu.get(),
+
+                                "Data Bits": bit_menu.get(),
+
+                                "Stop Bits": stop_menu.get()
+                            }
+
+                        refresh_device_tree()
+
+                        popup.destroy()
+
+                    ctk.CTkButton(
+                        popup,
+                        text="Save",
+                        fg_color=BLUE,
+                        command=save_edit
+                    ).pack(
+                        pady=15
+                    )
+                
+                ctk.CTkButton(
+                    btn_row,
+                    text="Edit",
+                    command=edit_device,
+                    fg_color=BLUE
+                ).pack(
+                    side="left",
+                    padx=5
+                )
+
                 def delete_device():
 
                     sel = device_tree.selection()
@@ -824,18 +1185,26 @@ class SettingForm:
 
         # ── Footer buttons ────────────────────────────────────────────────────
         def _save():
+
             data = {}
 
             for sec, fields in entries.items():
+
                 data[sec] = {}
+
                 for fname, widget in fields.items():
+
                     try:
                         data[sec][fname] = widget.get()
+
                     except Exception:
+
                         data[sec][fname] = ""
 
-            # product rules table
-            data["Product Rules"] = {"_table": [r.copy() for r in table_rows]}
+            data["Product Rules"] = {
+                "_table": [r.copy() for r in table_rows]
+            }
+
             data["Communication Devices"] = {
                 "_table": [r.copy() for r in device_rows]
             }
@@ -850,10 +1219,32 @@ class SettingForm:
                         data["Product Matrix Mapping"][fname] = widget.get()
 
                     except:
+
                         data["Product Matrix Mapping"][fname] = ""
 
             self.save_setting(data)
-            messagebox.showinfo("Success", "Setting saved successfully", parent=dlg)
+
+            # ====================================
+            # RELOAD MAIN FORM COMMUNICATION
+            # ====================================
+
+            try:
+
+                parent.reload_comm_devices()
+                parent.update_comm_status()
+
+            except Exception as e:
+
+                print(
+                    "Reload Comm Error:",
+                    e
+                )
+
+            messagebox.showinfo(
+                "Success",
+                "Setting saved successfully",
+                parent=dlg
+            )
 
         btn_frame = ctk.CTkFrame(footer, fg_color="transparent")
         btn_frame.pack(side="right", padx=15, pady=10)

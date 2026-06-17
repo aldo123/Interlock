@@ -104,6 +104,77 @@ class CP2Page:
         ctk.CTkEntry(sn_row, fg_color="#172132", border_color=BORDER,
                      text_color=TEXT, placeholder_text="", width=80,
                      state="disabled").pack(side="left", padx=8)
+        # PASS1
+        ctk.CTkLabel(
+            sn_row,
+            text="Pass1 :",
+            font=("Segoe UI", 10),
+            text_color=TEXT2
+        ).pack(side="left")
+
+        ctk.CTkEntry(
+            sn_row,
+            width=60,
+            height=28,
+            fg_color="#172132",
+            border_color=BORDER,
+            text_color=SUCCESS,
+            state="disabled"
+        ).pack(side="left", padx=(4,15))
+
+        # FPY1
+        ctk.CTkLabel(
+            sn_row,
+            text="FPY1 :",
+            font=("Segoe UI", 10),
+            text_color=TEXT2
+        ).pack(side="left")
+
+        ctk.CTkEntry(
+            sn_row,
+            width=60,
+            height=28,
+            fg_color="#172132",
+            border_color=BORDER,
+            text_color=SUCCESS,
+            state="disabled"
+        ).pack(side="left", padx=(4,15))
+
+        # PASS2
+        ctk.CTkLabel(
+            sn_row,
+            text="Pass2 :",
+            font=("Segoe UI", 10),
+            text_color=TEXT2
+        ).pack(side="left")
+
+        ctk.CTkEntry(
+            sn_row,
+            width=60,
+            height=28,
+            fg_color="#172132",
+            border_color=BORDER,
+            text_color=SUCCESS,
+            state="disabled"
+        ).pack(side="left", padx=(4,15))
+
+        # FPY2
+        ctk.CTkLabel(
+            sn_row,
+            text="FPY2 :",
+            font=("Segoe UI", 10),
+            text_color=TEXT2
+        ).pack(side="left")
+
+        ctk.CTkEntry(
+            sn_row,
+            width=60,
+            height=28,
+            fg_color="#172132",
+            border_color=BORDER,
+            text_color=SUCCESS,
+            state="disabled"
+        ).pack(side="left", padx=(4,0))
 
         # ── 2. Production Order ───────────────────────────────────
         po_outer = ctk.CTkFrame(main, fg_color=CARD_BG,

@@ -22,6 +22,7 @@ class RS232Reader:
 
         self.json_file = None
         self.section = None
+        self.last_connect_attempt = 0
 
     # =====================================================
     # LOAD CONFIG
@@ -182,6 +183,10 @@ class RS232Reader:
         section=None
     ):
 
+        if self.is_connected():
+
+            return True
+
         try:
 
             if json_file and section:
@@ -199,13 +204,23 @@ class RS232Reader:
 
                 return False
 
+            if self.ser:
+
+                try:
+                    self.ser.close()
+                except:
+                    pass
+
+                self.ser = None
+            
             self.ser = serial.Serial(
                 port=self.port,
                 baudrate=self.baudrate,
                 bytesize=self.bytesize,
                 parity=self.parity,
                 stopbits=self.stopbits,
-                timeout=1
+                timeout=0.2,
+                write_timeout=0.2
             )
 
             print(
@@ -215,6 +230,17 @@ class RS232Reader:
             return True
 
         except Exception as e:
+
+            try:
+
+                if self.ser:
+
+                    self.ser.close()
+
+            except:
+                pass
+
+            self.ser = None
 
             print(
                 "Connect Error:",
@@ -241,6 +267,8 @@ class RS232Reader:
 
         except:
             pass
+
+        self.ser = None
 
     # =====================================================
     # SEND
@@ -356,9 +384,9 @@ class RS232Reader:
                     e
                 )
 
-                time.sleep(
-                    1
-                )
+                self.disconnect()
+
+                break
 
     # =====================================================
     # STATUS
@@ -376,6 +404,8 @@ class RS232Reader:
         except:
 
             return False
+    
+    
 
     # =====================================================
     # GET PORT
@@ -383,3 +413,61 @@ class RS232Reader:
     def get_port(self):
 
         return self.port
+    
+    # =====================================================
+    # PORT AVAILABLE
+    # =====================================================
+    def port_available(self):
+
+        try:
+
+            ports = serial.tools.list_ports.comports()
+
+            for p in ports:
+
+                if p.device == self.port:
+
+                    return True
+
+            return False
+
+        except:
+
+            return False
+
+
+    # =====================================================
+    # VALIDATE CONNECTION
+    # =====================================================
+    def validate_connection(self):
+
+        try:
+
+            if self.ser is None:
+                return False
+
+            if not self.ser.is_open:
+
+                self.disconnect()
+                return False
+
+            if not self.port_available():
+
+                print(
+                    f"{self.port} removed"
+                )
+
+                self.disconnect()
+                return False
+
+            return True
+
+        except Exception as e:
+
+            print(
+                "Validate Error:",
+                e
+            )
+
+            self.disconnect()
+            return False

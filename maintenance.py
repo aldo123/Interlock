@@ -1,6 +1,6 @@
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import sqlite3
 from datetime import datetime, timedelta
 import csv, os
@@ -71,9 +71,7 @@ class MaintenanceDB:
                 corrective_action=:corrective_action,downtime_type=:downtime_type,
                 notes=:notes WHERE downtime_id=:downtime_id""", d)
 
-    # ========== STATISTIK UNTUK RENTANG TANGGAL ==========
     def range_stats(self, start_date, end_date):
-        """Menghitung total duration (menit), jumlah kejadian untuk rentang tanggal."""
         with self.cx() as c:
             rows = c.execute("""SELECT duration FROM downtime_events
                 WHERE DATE(start_time) BETWEEN ? AND ?
@@ -88,8 +86,29 @@ class MaintenanceDB:
                     pass
         return total_min, len(rows)
 
+    def calculate_mtbf(self, start_date, end_date):
+        with self.cx() as c:
+            rows = c.execute("""
+                SELECT start_time
+                FROM downtime_events
+                WHERE DATE(start_time) BETWEEN ? AND ?
+                AND end_time IS NOT NULL
+                ORDER BY start_time ASC
+            """, (start_date, end_date)).fetchall()
+
+        if len(rows) < 2:
+            return 0
+
+        intervals = []
+        for i in range(1, len(rows)):
+            prev_time = datetime.strptime(rows[i - 1][0], "%Y-%m-%d %H:%M:%S")
+            curr_time = datetime.strptime(rows[i][0], "%Y-%m-%d %H:%M:%S")
+            diff_min = (curr_time - prev_time).total_seconds() / 60
+            intervals.append(diff_min)
+
+        return int(sum(intervals) / len(intervals))
+
     def range_hourly(self, start_date, end_date):
-        """Menghitung total downtime per jam (0-23) untuk rentang tanggal."""
         with self.cx() as c:
             rows = c.execute("""
                 SELECT strftime('%H', start_time),
@@ -102,7 +121,6 @@ class MaintenanceDB:
             """, (start_date, end_date)).fetchall()
         return {int(r[0]): int(r[1] or 0) for r in rows if r[0]}
 
-    # ========== UNTUK TABEL DAN EXPORT ==========
     def get_page(self, start_date, end_date, start_time, end_time, page, per=5):
         start_dt = f"{start_date} {start_time}:00"
         end_dt   = f"{end_date} {end_time}:59"
@@ -124,26 +142,33 @@ class MaintenanceDB:
     def export_csv(self, start_date, end_date, start_time, end_time, path):
         start_dt = f"{start_date} {start_time}:00"
         end_dt   = f"{end_date} {end_time}:59"
-        q = """
-            SELECT *
+        # Hanya kolom yang relevan, hanya record yang sudah complete (end_time & duration tidak null)
+        EXPORT_COLS = [
+            "start_time", "end_time", "duration", "downtime_type",
+            "root_cause", "corrective_action", "technician", "shift",
+            "notes", "machine_code",
+        ]
+        q = f"""
+            SELECT {', '.join(EXPORT_COLS)}
             FROM downtime_events
             WHERE datetime(start_time) BETWEEN datetime(?) AND datetime(?)
+              AND end_time IS NOT NULL
+              AND duration IS NOT NULL
             ORDER BY start_time DESC
         """
         with self.cx() as c:
             cur = c.execute(q, (start_dt, end_dt))
-            cols = [d[0] for d in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [dict(zip(EXPORT_COLS, r)) for r in cur.fetchall()]
         if not rows:
             return 0
         with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=cols)
+            writer = csv.DictWriter(f, fieldnames=EXPORT_COLS)
             writer.writeheader()
             writer.writerows(rows)
         return len(rows)
 
 # ──────────────────────────────────────────────────────────
-# MAIN PAGE (dengan perbaikan after jobs)
+# MAIN PAGE
 # ──────────────────────────────────────────────────────────
 class MaintenancePage(ctk.CTkFrame):
     def __init__(self, master, user=None, main_form=None, **kw):
@@ -157,7 +182,7 @@ class MaintenancePage(ctk.CTkFrame):
         self.current_dt_id  = None
         self._dur_job = None
         self._clk_job = None
-        self._after_ids = []            # untuk menyimpan semua after jobs
+        self._after_ids = []
         self.cur_page = 1
         self.per_page = 5
         self.total_pages = 1
@@ -187,7 +212,6 @@ class MaintenancePage(ctk.CTkFrame):
         self._tick_clock()
 
     def _safe_after(self, ms, func, *args):
-        """Jalankan after dan simpan ID-nya."""
         after_id = self.after(ms, func, *args)
         self._after_ids.append(after_id)
         return after_id
@@ -481,7 +505,7 @@ class MaintenancePage(ctk.CTkFrame):
                      wraplength=290, justify="left").pack(padx=12, pady=(4,6))
 
     # ──────────────────────────────────────────────────────────
-    # DOWNTIME LOGIC (gunakan _safe_after)
+    # DOWNTIME LOGIC
     # ──────────────────────────────────────────────────────────
     def _tick_clock(self):
         if not self.winfo_exists():
@@ -599,10 +623,8 @@ class MaintenancePage(ctk.CTkFrame):
         if hasattr(self, 'since_lbl') and self.since_lbl.winfo_exists():
             self.since_lbl.configure(text="Since        -")
         for key, v in self.adi.items():
-
             if not v.winfo_exists():
                 continue
-
             if key == "Technician":
                 username = (
                     self.user.get("username", "-")
@@ -610,6 +632,8 @@ class MaintenancePage(ctk.CTkFrame):
                     else str(self.user)
                 )
                 v.configure(text=username)
+            else:
+                v.configure(text="-")
         for tb in [self.rc_txt, self.ca_txt, self.notes_txt]:
             if tb.winfo_exists():
                 tb.delete("1.0","end")
@@ -617,7 +641,7 @@ class MaintenancePage(ctk.CTkFrame):
         self._refresh_all()
 
     # ──────────────────────────────────────────────────────────
-    # CHART, KPI, TABLE (dengan _safe_after)
+    # CHART, KPI, TABLE
     # ──────────────────────────────────────────────────────────
     def _draw_chart(self):
         if not self.winfo_exists():
@@ -678,10 +702,7 @@ class MaintenancePage(ctk.CTkFrame):
         self.kpi_occ.configure(text=str(occ))
         mttr = total_min // occ if occ else 0
         self.kpi_mttr.configure(text=str(mttr))
-        days = (datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")).days + 1
-        total_available_min = days * 24 * 60
-        uptime_min = total_available_min - total_min
-        mtbf = uptime_min // occ if occ else 0
+        mtbf = self.db.calculate_mtbf(start, end)
         mtbf_h = mtbf // 60
         mtbf_m = mtbf % 60
         self.kpi_mtbf.configure(text=f"{mtbf_h:02d}:{mtbf_m:02d}")
@@ -766,18 +787,48 @@ class MaintenancePage(ctk.CTkFrame):
         if self.cur_page < self.total_pages:
             self._goto(self.cur_page+1)
 
+    # ──────────────────────────────────────────────────────────
+    # EXPORT CSV — pakai filedialog agar user pilih lokasi simpan
+    # ──────────────────────────────────────────────────────────
     def _export_csv(self):
         if not self.winfo_exists():
             return
-        path = "downtime_export.csv"
+
+        # Buat nama file default dengan range tanggal filter
+        default_name = (
+            f"downtime_{self.filter_start_date}_to_{self.filter_end_date}.csv"
+        )
+
+        path = filedialog.asksaveasfilename(
+            parent=self,
+            title="Simpan Export Downtime CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            initialfile=default_name,
+        )
+
+        # User menekan Cancel → path kosong, batalkan
+        if not path:
+            return
+
         n = self.db.export_csv(
             self.filter_start_date, self.filter_end_date,
-            self.filter_from_time, self.filter_to_time, path
+            self.filter_from_time, self.filter_to_time,
+            path,
         )
+
         if n:
-            messagebox.showinfo("Export", f"{n} record → {os.path.abspath(path)}", parent=self)
+            messagebox.showinfo(
+                "Export Berhasil",
+                f"✅  {n} record berhasil diekspor ke:\n{path}",
+                parent=self,
+            )
         else:
-            messagebox.showwarning("Export", "Tidak ada data.", parent=self)
+            messagebox.showwarning(
+                "Export",
+                "⚠  Tidak ada data pada rentang tanggal yang dipilih.",
+                parent=self,
+            )
 
     def _refresh_all(self):
         self._refresh_kpi()
@@ -785,14 +836,12 @@ class MaintenancePage(ctk.CTkFrame):
         self._safe_after(200, self._draw_chart)
 
     def destroy(self):
-        # Batalkan semua after jobs yang tersimpan
         for after_id in self._after_ids:
             try:
                 self.after_cancel(after_id)
             except Exception:
                 pass
         self._after_ids.clear()
-        # Batalkan juga job spesifik jika masih ada
         if self._dur_job:
             try:
                 self.after_cancel(self._dur_job)

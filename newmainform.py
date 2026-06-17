@@ -16,6 +16,8 @@ from manuallogin import ManualLoginDialog
 from database import DatabaseManager
 from maintenance import MaintenancePage
 from maintenance import MaintenanceDB
+from rs232 import RS232Reader
+import threading
 
 # ── Palette ──────────────────────────────────────────────────────────────────
 BG       = "#0F172A"
@@ -54,6 +56,26 @@ class NewMainForm(ctk.CTk):
         self.content_frame = None
 
         self.load_cp_from_json()
+
+        self.rs232_devices = {}
+        self.setting_last_modified = 0
+
+        self.load_comm_devices()
+
+        try:
+
+            path = os.path.join(
+                os.path.dirname(__file__),
+                "setting.json"
+            )
+
+            if os.path.exists(path):
+
+                self.setting_last_modified = os.path.getmtime(path)
+
+        except:
+            pass
+
         self.machine_status = "IDLE"
         self.last_move_success = None
         self.downtime_active = False
@@ -62,7 +84,26 @@ class NewMainForm(ctk.CTk):
 
         self._build_header()
         self._build_body()
+
+        self.build_comm_device_labels()
         self.refresh_permissions()
+
+        self.comm_status_job = None
+
+        # tampilkan UI dulu
+        self.after(
+            100,
+            self.start_comm_devices
+        )
+
+        self.after(
+            500,
+            self.update_comm_status
+        )
+        
+
+        # CLOSE EVENT
+        self.protocol("WM_DELETE_WINDOW",self.on_close)
         self.after(1000, self.update_machine_status)
         
 
@@ -369,6 +410,60 @@ class NewMainForm(ctk.CTk):
         self.menu_buttons["Main"].configure(
             fg_color="#16A34A",
             text_color="white"
+        )
+
+        # =====================================================
+        # COMMUNICATION DEVICE STATUS
+        # =====================================================
+
+        comm_frame = ctk.CTkFrame(
+            sidebar,
+            fg_color="#111827",
+            border_width=1,
+            border_color=BORDER,
+            corner_radius=6
+        )
+
+        comm_frame.pack(
+            side="bottom",
+            fill="x",
+            padx=4,
+            pady=6
+        )
+
+        ctk.CTkLabel(
+            comm_frame,
+            text="COMM DEVICE",
+            font=("Segoe UI", 10, "bold"),
+            text_color="#22C55E"
+        ).pack(
+            anchor="w",
+            padx=6,
+            pady=(6,4)
+        )
+
+        self.comm_device_frame = ctk.CTkFrame(
+            comm_frame,
+            fg_color="transparent"
+        )
+
+        self.comm_device_frame.pack(
+            fill="x",
+            padx=4
+        )
+
+        self.device_labels = {}
+
+        self.lbl_db_status = ctk.CTkLabel(
+            comm_frame,
+            text="● Database : ---",
+            text_color="#EF4444",
+            font=("Segoe UI",9)
+        )
+        self.lbl_db_status.pack(
+            anchor="w",
+            padx=6,
+            pady=(0,6)
         )
 
     def change_menu(self, menu_name, callback):
@@ -1059,6 +1154,265 @@ class NewMainForm(ctk.CTk):
                 state="normal" if is_engineer else "disabled"
             )
     
+    def start_comm_devices(self):
+
+        threading.Thread(
+            target=self.init_comm_devices,
+            daemon=True
+        ).start()
+
+    def load_comm_devices(self):
+
+        self.comm_devices = []
+
+        try:
+
+            path = os.path.join(
+                os.path.dirname(__file__),
+                "setting.json"
+            )
+
+            with open(
+                path,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
+                data = json.load(f)
+
+            self.comm_devices = data.get(
+                "Communication Devices",
+                {}
+            ).get(
+                "_table",
+                []
+            )
+
+        except Exception as e:
+
+            print(
+                "Load Comm Error:",
+                e
+            )
+    
+    def init_comm_devices(self):
+
+        new_devices = {}
+
+        for dev in self.comm_devices:
+
+            try:
+
+                device_name = dev.get(
+                    "Device Name",
+                    ""
+                )
+
+                reader = RS232Reader()
+
+                reader.port = dev.get(
+                    "COM Port",
+                    "COM1"
+                )
+
+                reader.baudrate = int(
+                    dev.get(
+                        "Baudrate",
+                        9600
+                    )
+                )
+
+                if reader.port_available():
+
+                    reader.connect()
+
+                new_devices[
+                    device_name
+                ] = reader
+
+            except Exception as e:
+
+                print(
+                    "Init Device Error:",
+                    e
+                )
+
+        self.rs232_devices = new_devices
+
+    def reload_comm_devices(self):
+
+        try:
+
+            path = os.path.join(
+                os.path.dirname(__file__),
+                "setting.json"
+            )
+
+            modified = os.path.getmtime(path)
+
+            if modified == self.setting_last_modified:
+                return
+
+            self.setting_last_modified = modified
+
+            print("Setting changed → Reload COM")
+
+            # disconnect lama
+            for reader in self.rs232_devices.values():
+
+                try:
+                    reader.disconnect()
+                except:
+                    pass
+
+            self.rs232_devices.clear()
+
+            self.load_comm_devices()
+
+
+            threading.Thread(
+                target=self.init_comm_devices,
+                daemon=True
+            ).start()
+
+            self.build_comm_device_labels()
+            self.update_idletasks()
+
+        except Exception as e:
+
+            print(
+                "Reload Comm Error:",
+                e
+            )
+
+    def build_comm_device_labels(self):
+
+        for widget in self.comm_device_frame.winfo_children():
+            widget.destroy()
+
+        self.device_labels = {}
+
+        for dev in self.comm_devices:
+
+            device_name = dev.get(
+                "Device Name",
+                "Unknown"
+            )
+
+            lbl = ctk.CTkLabel(
+                self.comm_device_frame,
+                text=f"🔴 {device_name}",
+                text_color="#EF4444",
+                font=("Segoe UI",9)
+            )
+
+            lbl.pack(
+                anchor="w",
+                padx=4
+            )
+
+            self.device_labels[device_name] = lbl
+
+    def update_comm_status(self):
+
+        self.reload_comm_devices()
+
+        # ==========================================
+        # DATABASE STATUS
+        # ==========================================
+        try:
+
+            self.db.conn.ping(
+                reconnect=True,
+                attempts=1,
+                delay=0
+            )
+
+            self.lbl_db_status.configure(
+                text="🟢 Database",
+                text_color="#22C55E"
+            )
+
+        except Exception:
+
+            self.lbl_db_status.configure(
+                text="🔴 Database",
+                text_color="#EF4444"
+            )
+
+        # ==========================================
+        # RS232 STATUS
+        # ==========================================
+        for device_name, reader in self.rs232_devices.items():
+
+            try:
+
+                port = reader.get_port()
+
+                # ----------------------------------
+                # Auto connect jika port baru muncul
+                # ----------------------------------
+                if (
+                    reader.ser is None
+                    and
+                    reader.port_available()
+                    and
+                    time.time() - reader.last_connect_attempt > 30
+                ):
+
+                    try:
+
+                        print(
+                            f"Trying connect {device_name} ({port})"
+                        )
+                        reader.last_connect_attempt = time.time()
+                        reader.connect()
+
+                    except Exception as e:
+
+                        print(
+                            f"{device_name} connect error:",
+                            e
+                        )
+
+                # ----------------------------------
+                # Update UI
+                # ----------------------------------
+                connected = reader.validate_connection()
+
+                if device_name in self.device_labels:
+
+                    self.device_labels[device_name].configure(
+                        text=f"{'🟢' if connected else '🔴'} {device_name} ({port})",
+                        text_color="#22C55E" if connected else "#EF4444"
+                    )
+
+            except Exception as e:
+
+                print(
+                    f"COMM STATUS ERROR [{device_name}] :",
+                    e
+                )
+
+        # ==========================================
+        # NEXT UPDATE
+        # ==========================================
+        try:
+
+            if self.comm_status_job:
+
+                self.after_cancel(
+                    self.comm_status_job
+                )
+
+        except:
+            pass
+
+        self.comm_status_job = self.after(
+            3000,
+            self.update_comm_status
+        )
+    
     # =========================================================================
     # MAIN CONTENT
     # =========================================================================
@@ -1192,6 +1546,42 @@ class NewMainForm(ctk.CTk):
         inner.pack(fill="x", padx=8, pady=(0, 4))
         return inner
 
+    def on_close(self):
+
+        try:
+
+            if self.comm_status_job:
+
+                self.after_cancel(
+                    self.comm_status_job
+                )
+        except:
+            pass
+
+        try:
+
+            for reader in self.rs232_devices.values():
+
+                try:
+                    reader.disconnect()
+                except:
+                    pass
+
+            self.rs232_devices.clear()
+
+        except:
+            pass
+
+        try:
+
+            if self.db.conn:
+
+                self.db.conn.close()
+
+        except:
+            pass
+
+        self.destroy()
 
 if __name__ == "__main__":
     app = NewMainForm()
