@@ -354,11 +354,6 @@ class RS232Reader:
 
                             data = buffer.strip()
 
-                            print(
-                                "RX:",
-                                data
-                            )
-
                             if self.callback:
 
                                 self.callback(

@@ -24,15 +24,6 @@
                 "Parity": "None",
                 "Data Bits": "8",
                 "Stop Bits": "1"
-            },
-            {
-                "Device Name": "Hipot",
-                "Type": "COM",
-                "COM Port": "COM7",
-                "Baudrate": "9600",
-                "Parity": "None",
-                "Data Bits": "8",
-                "Stop Bits": "1"
             }
         ]
     },

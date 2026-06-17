@@ -23,6 +23,7 @@ class CP2Page:
         self.app = app
 
         self.build_ui()
+        self.app.cp2_page = self
 
     def _card(self, parent, title):
 
@@ -94,9 +95,23 @@ class CP2Page:
         sn_entry_wrap.pack(side="left", padx=(0, 20))
         ctk.CTkLabel(sn_entry_wrap, text="▐▌▐▌▐▌", font=("Courier", 14),
                      text_color=TEXT2, width=28).pack(side="left", padx=(6, 0))
-        ctk.CTkEntry(sn_entry_wrap, fg_color="#172132", border_width=0,
-                     text_color=TEXT, placeholder_text="Scan Product SN", width=300,
-                     state="disabled").pack(side="left", padx=(2, 4))
+        self.txt_serial_number = ctk.CTkEntry(
+            sn_entry_wrap,
+            fg_color="#172132",
+            border_width=0,
+            text_color=TEXT,
+            placeholder_text="Scan Product SN",
+            width=300
+        )
+
+        self.txt_serial_number.pack(
+            side="left",
+            padx=(2,4)
+        )
+
+        self.txt_serial_number.configure(
+            state="disabled"
+        )
         ctk.CTkLabel(sn_row, text="Shift Completed Qty :",
                      font=("Segoe UI", 10), text_color=TEXT2).pack(side="left")
         ctk.CTkLabel(sn_row, text="  ✔ ", font=("Segoe UI", 12),
@@ -225,10 +240,25 @@ class CP2Page:
         fm_entry_wrap.pack(side="left", fill="x", expand=True)
         ctk.CTkLabel(fm_entry_wrap, text="▐▌▐▌▐▌", font=("Courier", 14),
                      text_color=TEXT2, width=28).pack(side="left", padx=(6, 0))
-        ctk.CTkEntry(fm_entry_wrap, fg_color="#172132", border_width=0,
-                     text_color=TEXT,
-                     placeholder_text="Scan Material Batch / Serial Number",
-                     width=500, state="disabled").pack(side="left", padx=(2, 4), fill="x", expand=True)
+        self.txt_feeding_material = ctk.CTkEntry(
+            fm_entry_wrap,
+            fg_color="#172132",
+            border_width=0,
+            text_color=TEXT,
+            placeholder_text="Scan Material Batch / Serial Number",
+            width=500
+        )
+
+        self.txt_feeding_material.pack(
+            side="left",
+            padx=(2,4),
+            fill="x",
+            expand=True
+        )
+
+        self.txt_feeding_material.configure(
+            state="disabled"
+        )
 
         # ── 4. P/N Table ──────────────────────────────────────────
         tbl_frame = ctk.CTkFrame(main, fg_color=CARD_BG,
@@ -305,9 +335,17 @@ class CP2Page:
         inner_i.pack(fill="both", expand=True, padx=10)
         ctk.CTkLabel(inner_i, text="🧑‍💻", font=("Segoe UI", 22),
                      text_color=TEXT2).pack(side="left")
-        ctk.CTkLabel(inner_i, text="Please Scan Material SN",
-                     font=("Segoe UI", 14, "bold"),
-                     text_color=SUCCESS).pack(side="left", padx=14)
+        self.lbl_instruction = ctk.CTkLabel(
+            inner_i,
+            text="Please Scan Product SN",
+            font=("Segoe UI", 14, "bold"),
+            text_color=SUCCESS
+        )
+
+        self.lbl_instruction.pack(
+            side="left",
+            padx=14
+        )
 
         # ── 7. Message ────────────────────────────────────────────
         msg_outer = ctk.CTkFrame(main, fg_color=CARD_BG,
