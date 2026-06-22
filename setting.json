@@ -30,24 +30,79 @@
     "Product Rules": {
         "_table": [
             {
+                "Product": "0",
+                "Part Voltage": "127V"
+            },
+            {
                 "Product": "1",
                 "Part Voltage": "127V"
             },
             {
                 "Product": "2",
+                "Part Voltage": "127V"
+            },
+            {
+                "Product": "3",
+                "Part Voltage": "127V"
+            },
+            {
+                "Product": "A",
+                "Part Voltage": "127V"
+            },
+            {
+                "Product": "B",
+                "Part Voltage": "127V"
+            },
+            {
+                "Product": "H",
+                "Part Voltage": "127V"
+            },
+            {
+                "Product": "4",
+                "Part Voltage": "240V"
+            },
+            {
+                "Product": "5",
+                "Part Voltage": "240V"
+            },
+            {
+                "Product": "6",
+                "Part Voltage": "240V"
+            },
+            {
+                "Product": "7",
+                "Part Voltage": "240V"
+            },
+            {
+                "Product": "8",
+                "Part Voltage": "240V"
+            },
+            {
+                "Product": "9",
                 "Part Voltage": "240V"
             }
         ]
     },
     "Product Matrix Mapping": {
-        "Part Matrix": "47",
-        "PN": "1-7",
-        "Vendor": "",
-        "Voltage": "",
-        "HW Ver": "",
-        "FW Ver": "",
-        "ESP FW": "",
-        "Date": "",
-        "Serial Number": ""
+        "Part Matrix": "55",
+        "PN": "1-10",
+        "Vendor": "11-18",
+        "Voltage": "19-22",
+        "HW Ver": "23-27",
+        "FW Ver": "28-35",
+        "ESP FW": "36-43",
+        "Date": "44-49",
+        "Serial Number": "50-55"
+    },
+    "SN Chassis Mapping": {
+        "Product Matrix": "19",
+        "Date": "1-5",
+        "Type": "6-8",
+        "Line": "9",
+        "Serial Number": "10-13",
+        "Partner": "14",
+        "Voltage": "15",
+        "Plug": "16",
+        "Color": "17-18"
     }
 }

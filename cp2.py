@@ -1,6 +1,10 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk
+import json
+import os
+from datetime import datetime
+import time
 
 
 # ── Palette ──────────────────────────────────────────────────────────────────
@@ -21,9 +25,10 @@ class CP2Page:
 
         self.parent = parent
         self.app = app
-
+        self.material_scanned = False
         self.build_ui()
         self.app.cp2_page = self
+        
 
     def _card(self, parent, title):
 
@@ -295,7 +300,7 @@ class CP2Page:
         )
 
         cols = ("pn", "description", "barcode", "bt_mac")
-        tree = ttk.Treeview(tbl_frame, columns=cols, show="headings",
+        self.tree = ttk.Treeview(tbl_frame, columns=cols, show="headings",
                              style="PN.Treeview", height=4)
         for col, label, w in [
             ("pn",          "P/N",                   160),
@@ -303,15 +308,16 @@ class CP2Page:
             ("barcode",     "Barcode",                180),
             ("bt_mac",      "Bluetooth MAC Address",  200),
         ]:
-            tree.heading(col, text=label)
-            tree.column(col, width=w, anchor="w")
-        tree.pack(fill="x", padx=6, pady=6)
+            self.tree.heading(col, text=label)
+            self.tree.column(col, width=w, anchor="w")
+        self.tree.pack(fill="x", padx=6, pady=6)
 
         # ── 5. PCBA Barcode ───────────────────────────────────────
         pcba_box = self._card(main, "PCBA Barcode")
         pcba_row = ctk.CTkFrame(pcba_box, fg_color="transparent")
         pcba_row.pack(fill="x", pady=(2, 4))
         icons = ["📄", "👥", "🔌", "🖥", "⬛", "📦", "⊞", "▐▌▐"]
+        self.pcba_entries = []
         for icon in icons:
             cell = ctk.CTkFrame(pcba_row, fg_color="#172132",
                                 border_width=1, border_color=BORDER, corner_radius=4)
@@ -320,9 +326,17 @@ class CP2Page:
             inner_cell.pack(padx=4, pady=4)
             ctk.CTkLabel(inner_cell, text=icon, font=("Segoe UI", 11),
                          text_color=TEXT2, width=20).pack(side="left")
-            ctk.CTkEntry(inner_cell, fg_color="#172132", border_width=0,
-                         text_color=TEXT, width=85, height=24,
-                         state="disabled").pack(side="left")
+            entry = ctk.CTkEntry(
+                inner_cell,
+                fg_color="#172132",
+                border_width=0,
+                text_color=TEXT,
+                width=85,
+                height=24,
+                state="disabled"
+            )
+            entry.pack(side="left")
+            self.pcba_entries.append(entry)
 
         # ── 6. Instruction ────────────────────────────────────────
         
@@ -354,8 +368,469 @@ class CP2Page:
         ctk.CTkLabel(msg_outer, text=" Message ",
                      font=("Segoe UI", 10), text_color=TEXT2,
                      fg_color=CARD_BG).pack(anchor="w", padx=8, pady=(4, 0))
-        msg_text = tk.Text(msg_outer, bg="#0A0F1A", fg=BLUE,
-                           font=("Consolas", 9), relief="flat", bd=4,
-                           insertbackground=TEXT, selectbackground="#2563EB")
-        msg_text.pack(fill="both", expand=True, padx=6, pady=(2, 6))
-        msg_text.config(state="disabled")
+        self.msg_text = tk.Text(
+            msg_outer,
+            bg="#0A0F1A",
+            fg="#00FF88",
+            font=("Consolas", 10),
+            relief="flat",
+            bd=4,
+            insertbackground=TEXT,
+            selectbackground="#2563EB"
+        )
+        self.msg_text.pack(
+            fill="both",
+            expand=True,
+            padx=6,
+            pady=(2,6)
+        )
+
+        self.msg_text.config(
+            state="disabled"
+        )
+
+    def handle_scan(
+        self,
+        device_name,
+        data
+    ):
+
+        self.add_log(
+            f"[{device_name}] {data}",
+            "#00BFFF"
+        )
+
+        device = device_name.lower()
+
+        if device == "product":
+
+            self.scan_product(data)
+
+        elif device == "part":
+
+            # ==================================
+            # MATERIAL BELUM DISCAN
+            # ==================================
+            if not self.material_scanned:
+
+                self.scan_material(data)
+
+            # ==================================
+            # MATERIAL SUDAH DISCAN
+            # BERARTI DATA BERIKUTNYA = MAC
+            # ==================================
+            else:
+
+                self.update_mac_address(data)
+
+                self.add_log(
+                    f"MAC Address : {data}",
+                    "#22C55E"
+                )
+
+                self.lbl_instruction.configure(
+                    text="PASS"
+                )
+
+    def scan_product(
+        self,
+        serial_number
+    ):
+
+        current_sn = self.txt_serial_number.get().strip()
+
+        if current_sn:
+
+            self.add_log(
+                f"Product SN already scanned : {current_sn}"
+            )
+            return
+
+        self.txt_serial_number.configure(
+            state="normal"
+        )
+
+        self.txt_serial_number.insert(
+            0,
+            serial_number
+        )
+
+        self.txt_serial_number.configure(
+            state="disabled"
+        )
+
+        self.lbl_instruction.configure(
+            text="Please Scan Main PCBA SN"
+        )
+    
+    def scan_material(
+        self,
+        material_sn
+    ):
+
+        product_sn = self.txt_serial_number.get().strip()
+
+        if not product_sn:
+
+            self.add_log(
+                "Scan Product SN first"
+            )
+
+            return
+
+        required_voltage = self.get_required_voltage(
+            product_sn
+        )
+
+        material_voltage = self.get_material_voltage(
+            material_sn
+        )
+
+        self.add_log(
+            f"Required Voltage : {required_voltage}"
+        )
+
+        self.add_log(
+            f"Material Voltage : {material_voltage}"
+        )
+
+        if material_voltage != required_voltage:
+
+            self.lbl_instruction.configure(
+                text=f"PCBA difference voltage please re-scan PCBA ({required_voltage})"
+            )
+
+            return
+
+        current_material = self.txt_feeding_material.get().strip()
+
+        if current_material:
+
+            self.add_log(
+                f"Material already scanned : {current_material}"
+            )
+
+            return
+
+        self.txt_feeding_material.configure(
+            state="normal"
+        )
+
+        self.txt_feeding_material.insert(
+            0,
+            material_sn
+        )
+
+        self.txt_feeding_material.configure(
+            state="disabled"
+        )
+
+        material_data = self.parse_material_data(
+            material_sn
+        )
+
+        # =====================================
+        # TABLE
+        # =====================================
+
+        for item in self.tree.get_children():
+
+            self.tree.delete(item)
+
+        self.tree.insert(
+            "",
+            "end",
+            values=(
+                material_data.get("PN",""),
+                f"Main PCBA ({material_data.get('Voltage','')})",
+                material_sn,
+                ""
+            )
+        )
+
+        # =====================================
+        # PCBA BARCODE FIELD
+        # =====================================
+
+        pcba_values = [
+
+            material_data.get("PN",""),
+            material_data.get("Vendor",""),
+            material_data.get("Voltage",""),
+            material_data.get("HW Ver",""),
+            material_data.get("FW Ver",""),
+            material_data.get("ESP FW",""),
+            material_data.get("Date",""),
+            material_data.get("Serial Number","")
+
+        ]
+
+        for entry,value in zip(
+            self.pcba_entries,
+            pcba_values
+        ):
+
+            entry.configure(
+                state="normal"
+            )
+
+            entry.delete(
+                0,
+                "end"
+            )
+
+            entry.insert(
+                0,
+                value
+            )
+
+            entry.configure(
+                state="disabled"
+            )
+
+        self.lbl_instruction.configure(
+            text="Scan Mac Address"
+        )
+        self.material_scanned = True
+        
+
+    def reset_interlock(self):
+
+        self.txt_serial_number.configure(
+            state="normal"
+        )
+
+        self.txt_serial_number.delete(
+            0,
+            "end"
+        )
+
+        self.txt_serial_number.configure(
+            state="disabled"
+        )
+
+        self.txt_feeding_material.configure(
+            state="normal"
+        )
+
+        self.txt_feeding_material.delete(
+            0,
+            "end"
+        )
+
+        self.txt_feeding_material.configure(
+            state="disabled"
+        )
+
+        self.lbl_instruction.configure(
+            text="Please Scan Product SN"
+        )
+        self.material_scanned = False
+
+        for item in self.tree.get_children():
+
+            self.tree.delete(item)
+
+        # =====================================
+        # CLEAR PCBA FIELD
+        # =====================================
+
+        for entry in self.pcba_entries:
+
+            entry.configure(
+                state="normal"
+            )
+
+            entry.delete(
+                0,
+                "end"
+            )
+
+            entry.configure(
+                state="disabled"
+            )
+
+    def get_required_voltage(
+        self,
+        product_sn
+    ):
+
+        try:
+
+            path = os.path.join(
+                os.path.dirname(__file__),
+                "setting.json"
+            )
+
+            with open(
+                path,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
+                setting = json.load(f)
+
+            voltage_pos = int(
+                setting["SN Chassis Mapping"]["Voltage"]
+            )
+
+            product_code = product_sn[
+                voltage_pos - 1
+            ]
+
+            for row in setting["Product Rules"]["_table"]:
+
+                if row["Product"] == product_code:
+
+                    return row["Part Voltage"]
+
+        except Exception as e:
+
+            self.add_log(
+                f"Voltage Rule Error: {e}"
+            )
+
+            return ""
+    
+    def get_material_voltage(
+        self,
+        material_sn
+    ):
+
+        try:
+
+            path = os.path.join(
+                os.path.dirname(__file__),
+                "setting.json"
+            )
+
+            with open(
+                path,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
+                setting = json.load(f)
+
+            voltage_range = setting[
+                "Product Matrix Mapping"
+            ]["Voltage"]
+
+            start,end = map(
+                int,
+                voltage_range.split("-")
+            )
+
+            return material_sn[
+                start - 1 : end
+            ]
+
+        except Exception as e:
+
+            self.add_log(
+                f"Material Voltage Error: {e}"
+            )
+
+        return ""
+    
+
+    def add_log(
+        self,
+        message,
+        color="#00FF88"
+    ):
+
+        try:
+
+            timestamp = datetime.now().strftime(
+                "%H:%M:%S"
+            )
+
+            self.msg_text.configure(
+                state="normal"
+            )
+
+            tag = f"log_{time.time()}"
+
+            self.msg_text.tag_config(
+                tag,
+                foreground=color
+            )
+
+            self.msg_text.insert(
+                "end",
+                f"[{timestamp}] {message}\n",
+                tag
+            )
+
+            self.msg_text.see("end")
+
+            self.msg_text.configure(
+                state="disabled"
+            )
+
+        except Exception:
+            pass
+
+    def parse_material_data(
+        self,
+        material_sn
+    ):
+
+        path = os.path.join(
+            os.path.dirname(__file__),
+            "setting.json"
+        )
+
+        with open(
+            path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            setting = json.load(f)
+
+        mapping = setting[
+            "Product Matrix Mapping"
+        ]
+
+        result = {}
+
+        for field,rng in mapping.items():
+
+            if "-" not in str(rng):
+                continue
+
+            start,end = map(
+                int,
+                rng.split("-")
+            )
+
+            result[field] = material_sn[
+                start-1:end
+            ]
+
+        return result
+    
+    def update_mac_address(
+        self,
+        mac_address
+    ):
+
+        items = self.tree.get_children()
+
+        if not items:
+            return
+
+        item = items[0]
+
+        values = list(
+            self.tree.item(item)["values"]
+        )
+
+        values[3] = mac_address
+
+        self.tree.item(
+            item,
+            values=values
+        )

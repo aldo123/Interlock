@@ -73,7 +73,20 @@ class SettingForm:
                 "ESP FW":        "",
                 "Date":          "",
                 "Serial Number": ""
+            },
+
+            "SN Chassis Mapping": {
+                "Product Matrix": "1-2",
+                "Date": "3-4",
+                "Type": "3-4",
+                "Line": "5-6",
+                "Serial Number": "7-12",
+                "Partner": "13-14",
+                "Voltage": "15-18",
+                "Plug": "19-20",
+                "Color": "21-22"
             }
+            
         }
 
         path = self.get_setting_path()
@@ -1222,6 +1235,20 @@ class SettingForm:
 
                         data["Product Matrix Mapping"][fname] = ""
 
+            if "SN Chassis Mapping" in entries:
+
+                data["SN Chassis Mapping"] = {}
+
+                for fname, widget in entries["SN Chassis Mapping"].items():
+
+                    try:
+
+                        data["SN Chassis Mapping"][fname] = widget.get()
+
+                    except:
+
+                        data["SN Chassis Mapping"][fname] = ""
+                        
             self.save_setting(data)
 
             # ====================================

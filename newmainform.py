@@ -56,6 +56,7 @@ class NewMainForm(ctk.CTk):
         self.content_frame = None
 
         self.load_cp_from_json()
+        
 
         self.rs232_devices = {}
         self.setting_last_modified = 0
@@ -1538,7 +1539,7 @@ class NewMainForm(ctk.CTk):
             text_color="#052E16",
             font=("Segoe UI", 16, "bold"),
             corner_radius=8,
-            command=self.reset_interlock
+            command=self.reset_current_page
         ).pack(
             fill="x",
             padx=8,
@@ -1560,160 +1561,23 @@ class NewMainForm(ctk.CTk):
         inner.pack(fill="x", padx=8, pady=(0, 4))
         return inner
 
-    def test_rx(
-        self,
-        device_name,
-        data
-    ):
+    def test_rx(self, device_name, data):
 
-        print(
-            f"[{device_name}] {data}"
-        )
+        if hasattr(self, "cp2_page"):
 
-        device = device_name.lower()
-
-        if device == "product":
-
-            self.after(
-                0,
-                lambda:
-                self.update_serial_number(data)
+            self.cp2_page.handle_scan(
+                device_name,
+                data
             )
 
-        elif device == "part":
+    def reset_current_page(self):
 
-            self.after(
-                0,
-                lambda:
-                self.update_feeding_material(data)
-            )
-    
-    def update_serial_number(
-        self,
-        serial_number
-    ):
+        if hasattr(
+            self,
+            "cp2_page"
+        ):
 
-        try:
-
-            if not hasattr(
-                self,
-                "cp2_page"
-            ):
-                return
-
-            entry = self.cp2_page.txt_serial_number
-
-            current_sn = entry.get().strip()
-
-            # ==================================
-            # SUDAH ADA SN
-            # ==================================
-            if current_sn:
-
-                print(
-                    f"Product SN already scanned : {current_sn}"
-                )
-
-                return
-
-            # ==================================
-            # INPUT PRODUCT SN PERTAMA
-            # ==================================
-            entry.configure(
-                state="normal"
-            )
-
-            entry.insert(
-                0,
-                serial_number
-            )
-
-            entry.configure(
-                state="disabled"
-            )
-
-            self.cp2_page.lbl_instruction.configure(
-                text="Please Scan Main PCBA SN"
-            )
-
-        except Exception as e:
-
-            print(
-                "Update SN Error:",
-                e
-            )
-    
-    def update_feeding_material(
-        self,
-        material_sn
-    ):
-
-        try:
-
-            if not hasattr(
-                self,
-                "cp2_page"
-            ):
-                return
-
-            # ==================================
-            # PRODUCT HARUS SUDAH ADA
-            # ==================================
-            product_sn = self.cp2_page.txt_serial_number.get().strip()
-
-            if not product_sn:
-
-                print(
-                    "Scan Product SN first"
-                )
-
-                return
-
-            entry = self.cp2_page.txt_feeding_material
-
-            current_material = entry.get().strip()
-
-            # ==================================
-            # SUDAH ADA MATERIAL
-            # ==================================
-            if current_material:
-
-                print(
-                    f"Material already scanned : {current_material}"
-                )
-
-                return
-
-            # ==================================
-            # INPUT MATERIAL PERTAMA
-            # ==================================
-            entry.configure(
-                state="normal"
-            )
-
-            entry.insert(
-                0,
-                material_sn
-            )
-
-            entry.configure(
-                state="disabled"
-            )
-
-            self.cp2_page.lbl_instruction.configure(
-                text="Scan Mac Address"
-            )
-
-            print(
-                f"Part Scanned : {material_sn}"
-            )
-
-        except Exception as e:
-
-            print(
-                "Update Material Error:",
-                e
-            )
+            self.cp2_page.reset_interlock()
 
     def on_close(self):
 
@@ -1752,60 +1616,6 @@ class NewMainForm(ctk.CTk):
 
         self.destroy()
     
-    def reset_interlock(self):
-
-        try:
-
-            if hasattr(
-                self,
-                "cp2_page"
-            ):
-
-                entry = self.cp2_page.txt_serial_number
-
-                entry.configure(
-                    state="normal"
-                )
-
-                entry.delete(
-                    0,
-                    "end"
-                )
-
-                entry.configure(
-                    state="disabled"
-                )
-
-                material_entry = self.cp2_page.txt_feeding_material
-
-                material_entry.configure(
-                    state="normal"
-                )
-
-                material_entry.delete(
-                    0,
-                    "end"
-                )
-
-                material_entry.configure(
-                    state="disabled"
-                )
-
-                self.cp2_page.lbl_instruction.configure(
-                    text="Please Scan Product SN"
-                )
-                
-
-            print(
-                "Interlock Reset"
-            )
-
-        except Exception as e:
-
-            print(
-                "Reset Error:",
-                e
-            )
 
 if __name__ == "__main__":
     app = NewMainForm()
